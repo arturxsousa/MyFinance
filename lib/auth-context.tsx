@@ -1,11 +1,12 @@
 "use client";
 
-import { createContext, useContext, useState } from "react";
+import { createContext, useContext, useEffect, useState } from "react";
+import { supabase } from "./supabase";
 
 export type Role = "admin" | "user";
 
 export type User = {
-  id: number;
+  id: string;
   name: string;
   email: string;
   role: Role;
@@ -13,99 +14,118 @@ export type User = {
   status: "Active" | "Inactive";
 };
 
-type StoredUser = User & { password: string };
-
-const defaultUsers: StoredUser[] = [
-  { id: 1, name: "Admin",       email: "admin@finance.app", password: "Admin@2026!", role: "admin", status: "Active",   joined: "2026-01-01" },
-  { id: 2, name: "Artur Sousa", email: "artur@finance.app", password: "user1234",    role: "user",  status: "Active",   joined: "2026-01-15" },
-  { id: 3, name: "Maria Silva", email: "maria@finance.app", password: "user1234",    role: "user",  status: "Active",   joined: "2026-02-03" },
-  { id: 4, name: "João Costa",  email: "joao@finance.app",  password: "user1234",    role: "user",  status: "Inactive", joined: "2026-01-20" },
-];
-
-function loadUsers(): StoredUser[] {
-  if (typeof window === "undefined") return defaultUsers;
-  const stored = localStorage.getItem("users");
-  return stored ? JSON.parse(stored) : defaultUsers;
-}
-
-function saveUsers(users: StoredUser[]) {
-  localStorage.setItem("users", JSON.stringify(users));
-}
+type Result = { success: boolean; error?: string };
 
 type AuthContextType = {
   currentUser: User | null;
   users: User[];
-  login: (email: string, password: string) => boolean;
-  logout: () => void;
-  signUp: (name: string, email: string, password: string) => { success: boolean; error?: string };
-  updateAccount: (fields: { name: string; email: string; password?: string }) => { success: boolean; error?: string };
+  loading: boolean;
+  login: (email: string, password: string) => Promise<Result>;
+  logout: () => Promise<void>;
+  signUp: (name: string, email: string, password: string) => Promise<Result>;
+  updateAccount: (fields: { name: string; email: string; password?: string }) => Promise<Result>;
 };
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [storedUsers, setStoredUsers] = useState<StoredUser[]>(loadUsers);
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [users, setUsers] = useState<User[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const [currentUser, setCurrentUser] = useState<User | null>(() => {
-    if (typeof window === "undefined") return null;
-    const stored = localStorage.getItem("currentUser");
-    return stored ? JSON.parse(stored) : null;
-  });
-
-  const users: User[] = storedUsers.map(({ password: _, ...u }) => u);
-
-  function login(email: string, password: string): boolean {
-    const match = storedUsers.find((u) => u.email === email && u.password === password);
-    if (!match) return false;
-    const { password: _, ...user } = match;
-    setCurrentUser(user);
-    localStorage.setItem("currentUser", JSON.stringify(user));
-    return true;
+  async function fetchProfile(id: string, email: string): Promise<User | null> {
+    const { data } = await supabase.from("profiles").select("*").eq("id", id).single();
+    if (!data) return null;
+    return { id, email, name: data.name, role: data.role, joined: data.joined, status: data.status };
   }
 
-  function logout() {
-    setCurrentUser(null);
-    localStorage.removeItem("currentUser");
+  async function fetchAllUsers() {
+    const { data } = await supabase.from("profiles").select("*").order("joined");
+    if (!data) return;
+    setUsers(data.map((p: { id: string; name: string; role: Role; joined: string; status: "Active" | "Inactive"; email: string }) => ({
+      id: p.id,
+      name: p.name,
+      email: p.email ?? "",
+      role: p.role,
+      joined: p.joined,
+      status: p.status,
+    })));
   }
 
-  function signUp(name: string, email: string, password: string): { success: boolean; error?: string } {
-    if (storedUsers.find((u) => u.email === email)) {
-      return { success: false, error: "An account with this email already exists." };
-    }
-    const newUser: StoredUser = {
-      id: Date.now(),
-      name,
-      email,
-      password,
-      role: "user",
-      status: "Active",
-      joined: new Date().toISOString().split("T")[0],
-    };
-    const updated = [...storedUsers, newUser];
-    setStoredUsers(updated);
-    saveUsers(updated);
+  useEffect(() => {
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
+      if (session) {
+        const profile = await fetchProfile(session.user.id, session.user.email ?? "");
+        setCurrentUser(profile);
+        if (profile?.role === "admin") await fetchAllUsers();
+      }
+      setLoading(false);
+    });
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (event === "USER_UPDATED") return;
+      if (session) {
+        const profile = await fetchProfile(session.user.id, session.user.email ?? "");
+        setCurrentUser(profile);
+        if (profile?.role === "admin") await fetchAllUsers();
+      } else {
+        setCurrentUser(null);
+        setUsers([]);
+      }
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  async function login(email: string, password: string): Promise<Result> {
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) return { success: false, error: "Invalid email or password." };
     return { success: true };
   }
 
-  function updateAccount(fields: { name: string; email: string; password?: string }): { success: boolean; error?: string } {
+  async function logout() {
+    await supabase.auth.signOut();
+  }
+
+  async function signUp(name: string, email: string, password: string): Promise<Result> {
+    const { data, error } = await supabase.auth.signUp({ email, password });
+    if (error) return { success: false, error: error.message };
+    if (!data.user) return { success: false, error: "Sign up failed." };
+
+    const { error: profileError } = await supabase.from("profiles").insert({
+      id: data.user.id,
+      name,
+      email,
+      role: "user",
+      status: "Active",
+      joined: new Date().toISOString().split("T")[0],
+    });
+
+    if (profileError) return { success: false, error: profileError.message };
+    return { success: true };
+  }
+
+  async function updateAccount(fields: { name: string; email: string; password?: string }): Promise<Result> {
     if (!currentUser) return { success: false, error: "Not logged in." };
-    const emailTaken = storedUsers.find((u) => u.email === fields.email && u.id !== currentUser.id);
-    if (emailTaken) return { success: false, error: "Email is already in use." };
-    const updated = storedUsers.map((u) =>
-      u.id === currentUser.id
-        ? { ...u, name: fields.name, email: fields.email, ...(fields.password ? { password: fields.password } : {}) }
-        : u
-    );
-    setStoredUsers(updated);
-    saveUsers(updated);
-    const updatedUser = { ...currentUser, name: fields.name, email: fields.email };
-    setCurrentUser(updatedUser);
-    localStorage.setItem("currentUser", JSON.stringify(updatedUser));
+
+    const { error: profileError } = await supabase
+      .from("profiles")
+      .update({ name: fields.name })
+      .eq("id", currentUser.id);
+
+    if (profileError) return { success: false, error: profileError.message };
+
+    if (fields.password) {
+      const { error } = await supabase.auth.updateUser({ password: fields.password });
+      if (error) return { success: false, error: error.message };
+    }
+
+    setCurrentUser((prev) => prev ? { ...prev, name: fields.name } : prev);
     return { success: true };
   }
 
   return (
-    <AuthContext.Provider value={{ currentUser, users, login, logout, signUp, updateAccount }}>
+    <AuthContext.Provider value={{ currentUser, users, loading, login, logout, signUp, updateAccount }}>
       {children}
     </AuthContext.Provider>
   );

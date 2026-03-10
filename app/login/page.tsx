@@ -11,14 +11,17 @@ export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
 
-  function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    const success = login(email, password);
-    if (success) {
+    setLoading(true);
+    const result = await login(email, password);
+    if (result.success) {
       router.replace("/");
     } else {
-      setError("Invalid email or password.");
+      setError(result.error ?? "Something went wrong.");
+      setLoading(false);
     }
   }
 
@@ -56,9 +59,10 @@ export default function LoginPage() {
 
           <button
             type="submit"
-            className="mt-2 bg-violet-600 hover:bg-violet-500 text-white font-medium py-2 rounded-lg text-sm transition-colors"
+            disabled={loading}
+            className="mt-2 bg-violet-600 hover:bg-violet-500 disabled:opacity-50 text-white font-medium py-2 rounded-lg text-sm transition-colors"
           >
-            Sign in
+            {loading ? "Signing in..." : "Sign in"}
           </button>
         </form>
 

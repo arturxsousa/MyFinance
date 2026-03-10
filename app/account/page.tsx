@@ -16,28 +16,24 @@ export default function AccountPage() {
   });
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
+  const [loading, setLoading] = useState(false);
 
-  function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (form.password && form.password !== form.confirm) {
-      setError("Passwords do not match.");
-      return;
-    }
-    if (form.password && form.password.length < 6) {
-      setError("Password must be at least 6 characters.");
-      return;
-    }
-    const result = updateAccount({
-      name: form.name,
-      email: form.email,
-      password: form.password || undefined,
-    });
-    if (result.success) {
-      setSuccess(true);
-      setError("");
-      setForm((f) => ({ ...f, password: "", confirm: "" }));
-    } else {
-      setError(result.error ?? "Something went wrong.");
+    if (form.password && form.password !== form.confirm) { setError("Passwords do not match."); return; }
+    if (form.password && form.password.length < 6) { setError("Password must be at least 6 characters."); return; }
+    setLoading(true);
+    try {
+      const result = await updateAccount({ name: form.name, email: form.email, password: form.password || undefined });
+      if (result.success) {
+        setSuccess(true);
+        setError("");
+        setForm((f) => ({ ...f, password: "", confirm: "" }));
+      } else {
+        setError(result.error ?? "Something went wrong.");
+      }
+    } finally {
+      setLoading(false);
     }
   }
 
@@ -108,9 +104,10 @@ export default function AccountPage() {
             </button>
             <button
               type="submit"
-              className="flex-1 bg-violet-600 hover:bg-violet-500 text-white text-sm font-medium py-2 rounded-lg transition-colors"
+              disabled={loading}
+              className="flex-1 bg-violet-600 hover:bg-violet-500 disabled:opacity-50 text-white text-sm font-medium py-2 rounded-lg transition-colors"
             >
-              Save changes
+              {loading ? "Saving..." : "Save changes"}
             </button>
           </div>
         </form>

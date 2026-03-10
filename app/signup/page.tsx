@@ -10,22 +10,19 @@ export default function SignUpPage() {
   const router = useRouter();
   const [form, setForm] = useState({ name: "", email: "", password: "", confirm: "" });
   const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
 
-  function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (form.password !== form.confirm) {
-      setError("Passwords do not match.");
-      return;
-    }
-    if (form.password.length < 6) {
-      setError("Password must be at least 6 characters.");
-      return;
-    }
-    const result = signUp(form.name, form.email, form.password);
+    if (form.password !== form.confirm) { setError("Passwords do not match."); return; }
+    if (form.password.length < 6) { setError("Password must be at least 6 characters."); return; }
+    setLoading(true);
+    const result = await signUp(form.name, form.email, form.password);
     if (result.success) {
       router.replace("/login");
     } else {
       setError(result.error ?? "Something went wrong.");
+      setLoading(false);
     }
   }
 
@@ -85,9 +82,10 @@ export default function SignUpPage() {
 
           <button
             type="submit"
-            className="mt-2 bg-violet-600 hover:bg-violet-500 text-white font-medium py-2 rounded-lg text-sm transition-colors"
+            disabled={loading}
+            className="mt-2 bg-violet-600 hover:bg-violet-500 disabled:opacity-50 text-white font-medium py-2 rounded-lg text-sm transition-colors"
           >
-            Create account
+            {loading ? "Creating account..." : "Create account"}
           </button>
         </form>
 

@@ -1,6 +1,7 @@
 "use client";
 
 import { createContext, useContext, useEffect, useState } from "react";
+import { supabase } from "./supabase";
 
 export type Income = {
   id: number;
@@ -26,102 +27,80 @@ export type Investment = {
   date: string;
 };
 
-const defaultIncomes: Income[] = [
-  { id: 1, source: "Employer",         type: "Salary",     amount: 3500, date: "2026-03-01" },
-  { id: 2, source: "Freelance Client", type: "Freelance",  amount: 800,  date: "2026-03-03" },
-  { id: 3, source: "Dividends",        type: "Investment", amount: 220,  date: "2026-03-05" },
-  { id: 4, source: "Rental Property",  type: "Rental",     amount: 600,  date: "2026-03-05" },
-  { id: 5, source: "Side Project",     type: "Freelance",  amount: 350,  date: "2026-03-07" },
-  { id: 6, source: "Bank Interest",    type: "Investment", amount: 30,   date: "2026-03-08" },
-];
-
-const defaultInvestments: Investment[] = [
-  { id: 1, source: "S&P 500 ETF",   type: "ETF",        amount: 500, date: "2026-03-01" },
-  { id: 2, source: "Bitcoin",        type: "Crypto",     amount: 200, date: "2026-03-03" },
-  { id: 3, source: "Apple Stock",    type: "Stock",      amount: 150, date: "2026-03-05" },
-  { id: 4, source: "Savings Bond",   type: "Bond",       amount: 100, date: "2026-03-07" },
-  { id: 5, source: "Real Estate Fund", type: "REIT",    amount: 50,  date: "2026-03-08" },
-];
-
-const defaultExpenses: Expense[] = [
-  { id: 1, source: "Supermarket",     type: "Food",          amount: 220,  date: "2026-03-01" },
-  { id: 2, source: "Landlord",        type: "Rent",          amount: 1500, date: "2026-03-01" },
-  { id: 3, source: "Netflix",         type: "Entertainment", amount: 18,   date: "2026-03-03" },
-  { id: 4, source: "Pharmacy",        type: "Health",        amount: 45,   date: "2026-03-04" },
-  { id: 5, source: "Restaurant",      type: "Food",          amount: 65,   date: "2026-03-05" },
-  { id: 6, source: "Spotify",         type: "Entertainment", amount: 10,   date: "2026-03-06" },
-  { id: 7, source: "Electric Bill",   type: "Utilities",     amount: 95,   date: "2026-03-07" },
-  { id: 8, source: "Gas Station",     type: "Transport",     amount: 80,   date: "2026-03-07" },
-  { id: 9, source: "Online Shopping", type: "Other",         amount: 130,  date: "2026-03-08" },
-  { id: 10, source: "Gym",            type: "Health",        amount: 40,   date: "2026-03-08" },
-];
-
 type FinanceContextType = {
   incomes: Income[];
   expenses: Expense[];
   investments: Investment[];
-  addIncome: (income: Omit<Income, "id">) => void;
-  deleteIncome: (id: number) => void;
-  addExpense: (expense: Omit<Expense, "id">) => void;
-  deleteExpense: (id: number) => void;
-  addInvestment: (investment: Omit<Investment, "id">) => void;
-  deleteInvestment: (id: number) => void;
+  addIncome: (income: Omit<Income, "id">) => Promise<void>;
+  deleteIncome: (id: number) => Promise<void>;
+  addExpense: (expense: Omit<Expense, "id">) => Promise<void>;
+  deleteExpense: (id: number) => Promise<void>;
+  addInvestment: (investment: Omit<Investment, "id">) => Promise<void>;
+  deleteInvestment: (id: number) => Promise<void>;
 };
 
 const FinanceContext = createContext<FinanceContextType | null>(null);
 
 export function FinanceProvider({ children }: { children: React.ReactNode }) {
-  const [incomes, setIncomes] = useState<Income[]>(() => {
-    if (typeof window === "undefined") return defaultIncomes;
-    const stored = localStorage.getItem("incomes");
-    return stored ? JSON.parse(stored) : defaultIncomes;
-  });
-
-  const [expenses, setExpenses] = useState<Expense[]>(() => {
-    if (typeof window === "undefined") return defaultExpenses;
-    const stored = localStorage.getItem("expenses");
-    return stored ? JSON.parse(stored) : defaultExpenses;
-  });
-
-  const [investments, setInvestments] = useState<Investment[]>(() => {
-    if (typeof window === "undefined") return defaultInvestments;
-    const stored = localStorage.getItem("investments");
-    return stored ? JSON.parse(stored) : defaultInvestments;
-  });
+  const [incomes, setIncomes] = useState<Income[]>([]);
+  const [expenses, setExpenses] = useState<Expense[]>([]);
+  const [investments, setInvestments] = useState<Investment[]>([]);
 
   useEffect(() => {
-    localStorage.setItem("incomes", JSON.stringify(incomes));
-  }, [incomes]);
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (session) {
+        fetchAll();
+      } else {
+        setIncomes([]);
+        setExpenses([]);
+        setInvestments([]);
+      }
+    });
+    // Fetch on mount if already logged in
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session) fetchAll();
+    });
+    return () => subscription.unsubscribe();
+  }, []);
 
-  useEffect(() => {
-    localStorage.setItem("expenses", JSON.stringify(expenses));
-  }, [expenses]);
-
-  useEffect(() => {
-    localStorage.setItem("investments", JSON.stringify(investments));
-  }, [investments]);
-
-  function addIncome(income: Omit<Income, "id">) {
-    setIncomes((prev) => [...prev, { ...income, id: Date.now() }]);
+  async function fetchAll() {
+    const [incomesRes, expensesRes, investmentsRes] = await Promise.all([
+      supabase.from("incomes").select("*").order("date", { ascending: false }),
+      supabase.from("expenses").select("*").order("date", { ascending: false }),
+      supabase.from("investments").select("*").order("date", { ascending: false }),
+    ]);
+    if (incomesRes.data) setIncomes(incomesRes.data);
+    if (expensesRes.data) setExpenses(expensesRes.data);
+    if (investmentsRes.data) setInvestments(investmentsRes.data);
   }
 
-  function deleteIncome(id: number) {
+  async function addIncome(income: Omit<Income, "id">) {
+    const { data } = await supabase.from("incomes").insert(income).select().single();
+    if (data) setIncomes((prev) => [data, ...prev]);
+  }
+
+  async function deleteIncome(id: number) {
+    await supabase.from("incomes").delete().eq("id", id);
     setIncomes((prev) => prev.filter((i) => i.id !== id));
   }
 
-  function addExpense(expense: Omit<Expense, "id">) {
-    setExpenses((prev) => [...prev, { ...expense, id: Date.now() }]);
+  async function addExpense(expense: Omit<Expense, "id">) {
+    const { data } = await supabase.from("expenses").insert(expense).select().single();
+    if (data) setExpenses((prev) => [data, ...prev]);
   }
 
-  function deleteExpense(id: number) {
+  async function deleteExpense(id: number) {
+    await supabase.from("expenses").delete().eq("id", id);
     setExpenses((prev) => prev.filter((e) => e.id !== id));
   }
 
-  function addInvestment(investment: Omit<Investment, "id">) {
-    setInvestments((prev) => [...prev, { ...investment, id: Date.now() }]);
+  async function addInvestment(investment: Omit<Investment, "id">) {
+    const { data } = await supabase.from("investments").insert(investment).select().single();
+    if (data) setInvestments((prev) => [data, ...prev]);
   }
 
-  function deleteInvestment(id: number) {
+  async function deleteInvestment(id: number) {
+    await supabase.from("investments").delete().eq("id", id);
     setInvestments((prev) => prev.filter((i) => i.id !== id));
   }
 
