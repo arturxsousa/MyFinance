@@ -20,9 +20,9 @@ export default function IncomesPage() {
   const [showModal, setShowModal] = useState(false);
   const [form, setForm] = useState(empty);
 
-  function handleAdd() {
+  async function handleAdd() {
     if (!form.source || !form.amount || !form.date) return;
-    addIncome({ source: form.source, type: form.type, amount: Number(form.amount), date: form.date });
+    await addIncome({ source: form.source, type: form.type, amount: Number(form.amount), date: form.date });
     setForm(empty);
     setShowModal(false);
   }

@@ -74,8 +74,15 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
     if (investmentsRes.data) setInvestments(investmentsRes.data);
   }
 
+  async function getUserId(): Promise<string | null> {
+    const { data: { session } } = await supabase.auth.getSession();
+    return session?.user.id ?? null;
+  }
+
   async function addIncome(income: Omit<Income, "id">) {
-    const { data } = await supabase.from("incomes").insert(income).select().single();
+    const user_id = await getUserId();
+    if (!user_id) return;
+    const { data } = await supabase.from("incomes").insert({ ...income, user_id }).select().single();
     if (data) setIncomes((prev) => [data, ...prev]);
   }
 
@@ -85,7 +92,9 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
   }
 
   async function addExpense(expense: Omit<Expense, "id">) {
-    const { data } = await supabase.from("expenses").insert(expense).select().single();
+    const user_id = await getUserId();
+    if (!user_id) return;
+    const { data } = await supabase.from("expenses").insert({ ...expense, user_id }).select().single();
     if (data) setExpenses((prev) => [data, ...prev]);
   }
 
@@ -95,7 +104,9 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
   }
 
   async function addInvestment(investment: Omit<Investment, "id">) {
-    const { data } = await supabase.from("investments").insert(investment).select().single();
+    const user_id = await getUserId();
+    if (!user_id) return;
+    const { data } = await supabase.from("investments").insert({ ...investment, user_id }).select().single();
     if (data) setInvestments((prev) => [data, ...prev]);
   }
 

@@ -21,9 +21,9 @@ export default function InvestmentsPage() {
   const [showModal, setShowModal] = useState(false);
   const [form, setForm] = useState(empty);
 
-  function handleAdd() {
+  async function handleAdd() {
     if (!form.source || !form.amount || !form.date) return;
-    addInvestment({ source: form.source, type: form.type, amount: Number(form.amount), date: form.date });
+    await addInvestment({ source: form.source, type: form.type, amount: Number(form.amount), date: form.date });
     setForm(empty);
     setShowModal(false);
   }

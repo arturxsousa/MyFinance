@@ -22,9 +22,9 @@ export default function ExpensesPage() {
   const [showModal, setShowModal] = useState(false);
   const [form, setForm] = useState(empty);
 
-  function handleAdd() {
+  async function handleAdd() {
     if (!form.source || !form.amount || !form.date) return;
-    addExpense({ source: form.source, type: form.type, amount: Number(form.amount), date: form.date });
+    await addExpense({ source: form.source, type: form.type, amount: Number(form.amount), date: form.date });
     setForm(empty);
     setShowModal(false);
   }
