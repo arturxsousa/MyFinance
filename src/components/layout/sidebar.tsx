@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   LayoutDashboard,
   TrendingUp,
@@ -39,19 +39,22 @@ interface SidebarProps {
 
 export function Sidebar({ isAdmin = true }: SidebarProps) {
   const pathname = usePathname();
-  const [collapsed, setCollapsed] = useState(() => {
+  // Start collapsed (matches SSR), then sync from localStorage after hydration
+  const [collapsed, setCollapsed] = useState(true);
+  useEffect(() => {
     try {
       const stored = localStorage.getItem("sidebar-collapsed");
-      return stored !== null ? stored === "true" : true;
-    } catch {
-      return true;
-    }
-  });
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      if (stored !== null) setCollapsed(stored === "true");
+    } catch {}
+  }, []);
 
   const toggle = () => {
     const next = !collapsed;
     setCollapsed(next);
-    localStorage.setItem("sidebar-collapsed", String(next));
+    try {
+      localStorage.setItem("sidebar-collapsed", String(next));
+    } catch {}
   };
 
   const visibleBottom = bottomItems.filter((i) => !i.adminOnly || isAdmin);

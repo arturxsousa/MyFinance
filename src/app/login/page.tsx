@@ -1,6 +1,7 @@
 "use client";
 
 import { Suspense, useState } from "react";
+import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { TrendingUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -12,6 +13,10 @@ function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const next = searchParams.get("next") ?? "/dashboard";
+  const registered = searchParams.get("registered") === "1";
+  const verified = searchParams.get("verified") === "1";
+  const reset = searchParams.get("reset") === "1";
+  const verifyError = searchParams.get("verify_error") === "1";
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -102,15 +107,38 @@ function LoginForm() {
               />
             </div>
 
+            {registered && (
+              <p className="text-sm text-emerald-600">Account created! You can now sign in.</p>
+            )}
+            {verified && (
+              <p className="text-sm text-emerald-600">Email verified! You can now sign in.</p>
+            )}
+            {reset && <p className="text-sm text-emerald-600">Password updated. Please sign in.</p>}
+            {verifyError && (
+              <p className="text-sm text-destructive">Verification link is invalid or expired.</p>
+            )}
             {error && <p className="text-sm text-destructive">{error}</p>}
+
+            <div className="flex items-center justify-between">
+              <Link href="/forgot-password" className="text-sm text-emerald-600 hover:underline">
+                Forgot password?
+              </Link>
+            </div>
 
             <Button
               type="submit"
-              className="w-full bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm shadow-emerald-600/20 mt-2"
+              className="w-full bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm shadow-emerald-600/20"
               disabled={loading}
             >
               {loading ? "Signing in…" : "Sign in"}
             </Button>
+
+            <p className="text-center text-sm text-muted-foreground">
+              No account?{" "}
+              <Link href="/register" className="text-emerald-600 hover:underline font-medium">
+                Sign up
+              </Link>
+            </p>
           </form>
         </CardContent>
       </Card>

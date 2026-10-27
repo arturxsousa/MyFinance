@@ -11,6 +11,11 @@ export const refreshTokenRepo = {
     return rows[0]!;
   },
 
+  async findByHash(tx: UserTx, hash: string): Promise<RefreshToken | undefined> {
+    const rows = await tx.select().from(refreshToken).where(eq(refreshToken.tokenHash, hash));
+    return rows[0];
+  },
+
   async findActiveByHash(tx: UserTx, hash: string): Promise<RefreshToken | undefined> {
     const rows = await tx
       .select()

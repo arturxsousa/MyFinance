@@ -53,4 +53,15 @@ export const userRepo = {
       .set({ lockedUntil: until, updatedAt: new Date() })
       .where(eq(appUser.id, id));
   },
+
+  async activate(tx: UserTx, id: string): Promise<void> {
+    await tx
+      .update(appUser)
+      .set({ status: "ACTIVE", emailVerifiedAt: new Date(), updatedAt: new Date() })
+      .where(eq(appUser.id, id));
+  },
+
+  async updatePassword(tx: UserTx, id: string, passwordHash: string): Promise<void> {
+    await tx.update(appUser).set({ passwordHash, updatedAt: new Date() }).where(eq(appUser.id, id));
+  },
 };

@@ -3,7 +3,7 @@ import { db } from "@/db/client";
 import { userRepo } from "@/db/repositories/users";
 import { refreshTokenRepo } from "@/db/repositories/refresh-tokens";
 import { signAccessToken, generateToken, hashToken } from "@/lib/auth";
-import { setSessionCookies, getSessionCookies } from "@/lib/session";
+import { setSessionCookies, clearSessionCookies, getSessionCookies } from "@/lib/session";
 import { errorResponse, handleRouteError } from "@/lib/api-error";
 
 export async function POST() {
@@ -14,13 +14,20 @@ export async function POST() {
     const hash = hashToken(refreshToken);
 
     const result = await db.transaction(async (tx) => {
-      const token = await refreshTokenRepo.findActiveByHash(tx, hash);
-      if (!token) return { code: "INVALID_TOKEN" as const };
+      const token = await refreshTokenRepo.findByHash(tx, hash);
+
+      // Reuse detection: token exists but was already revoked — likely stolen
+      if (token?.revokedAt) {
+        await refreshTokenRepo.revokeAllForUser(tx, token.userId);
+        return { code: "REUSE_DETECTED" as const };
+      }
+
+      if (!token || token.expiresAt <= new Date()) return { code: "INVALID_TOKEN" as const };
 
       const user = await userRepo.findById(tx, token.userId);
       if (!user || user.status !== "ACTIVE") return { code: "INVALID_TOKEN" as const };
 
-      // Rotate: revoke old token, issue new one
+      // Rotate: revoke old, issue new
       await refreshTokenRepo.revoke(tx, token.id);
       const { raw, hash: newHash } = generateToken();
       await refreshTokenRepo.create(tx, {
@@ -35,8 +42,9 @@ export async function POST() {
       return { code: "OK" as const, accessToken, refreshToken: raw };
     });
 
-    if (result.code === "INVALID_TOKEN") {
-      return errorResponse("UNAUTHORIZED", "Invalid or expired refresh token", 401);
+    if (result.code === "REUSE_DETECTED" || result.code === "INVALID_TOKEN") {
+      await clearSessionCookies();
+      return errorResponse("UNAUTHORIZED", "Session expired. Please log in again.", 401);
     }
 
     await setSessionCookies(result.accessToken, result.refreshToken);

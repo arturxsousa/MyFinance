@@ -6,6 +6,7 @@ import { userRepo } from "@/db/repositories/users";
 import { refreshTokenRepo } from "@/db/repositories/refresh-tokens";
 import { signAccessToken, generateToken } from "@/lib/auth";
 import { setSessionCookies } from "@/lib/session";
+import { writeAuditLog } from "@/lib/audit";
 import { errorResponse, handleRouteError } from "@/lib/api-error";
 
 const MAX_FAILED = 5;
@@ -42,6 +43,7 @@ export async function POST(req: NextRequest) {
       if (!valid) {
         const nextCount = user.failedLoginCount + 1;
         await userRepo.incrementFailedLogin(tx, user.id);
+        await writeAuditLog({ tx, actorId: user.id, action: "LOGIN_FAILED", ip });
         if (nextCount >= MAX_FAILED) {
           const until = new Date(Date.now() + LOCK_MINUTES * 60 * 1000);
           await userRepo.lockAccount(tx, user.id, until);
@@ -51,6 +53,7 @@ export async function POST(req: NextRequest) {
       }
 
       await userRepo.updateLastLogin(tx, user.id, ip);
+      await writeAuditLog({ tx, actorId: user.id, action: "LOGIN", ip });
 
       const { raw, hash } = generateToken();
       await refreshTokenRepo.create(tx, {
