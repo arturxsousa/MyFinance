@@ -6,6 +6,9 @@
 -- 1. App role — no BYPASSRLS, no login (Neon uses connection strings per role)
 CREATE ROLE IF NOT EXISTS app_user_rw;
 
+-- Allow neondb_owner to SET LOCAL ROLE app_user_rw in transactions (needed for RLS tests)
+GRANT app_user_rw TO neondb_owner;
+
 -- 2. Grant usage on schema
 GRANT USAGE ON SCHEMA public TO app_user_rw;
 
