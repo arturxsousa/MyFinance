@@ -8,23 +8,28 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
+import { useT } from "@/i18n/client";
 
 const bg = {
   backgroundImage:
     "radial-gradient(ellipse 80% 50% at 50% -5%, oklch(0.5 0.15 145 / 0.12), transparent)",
 };
 
-const Logo = () => (
-  <div className="mb-8 flex flex-col items-center gap-4">
-    <div className="w-14 h-14 rounded-2xl bg-emerald-600 flex items-center justify-center shadow-lg shadow-emerald-600/30">
-      <TrendingUp className="h-7 w-7 text-white" strokeWidth={2.5} />
+function Logo() {
+  const t = useT();
+  return (
+    <div className="mb-8 flex flex-col items-center gap-4">
+      <div className="w-14 h-14 rounded-2xl bg-emerald-600 flex items-center justify-center shadow-lg shadow-emerald-600/30">
+        <TrendingUp className="h-7 w-7 text-white" strokeWidth={2.5} />
+      </div>
+      <h1 className="text-2xl font-bold tracking-tight">{t("common.appName")}</h1>
     </div>
-    <h1 className="text-2xl font-bold tracking-tight">My Finance</h1>
-  </div>
-);
+  );
+}
 
 function ResetPasswordForm() {
   const router = useRouter();
+  const t = useT();
   const searchParams = useSearchParams();
   const token = searchParams.get("token") ?? "";
 
@@ -36,7 +41,7 @@ function ResetPasswordForm() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (password !== confirm) {
-      setError("Passwords do not match.");
+      setError(t("reset.mismatch"));
       return;
     }
     setError(null);
@@ -56,12 +61,12 @@ function ResetPasswordForm() {
       }
 
       if (data?.error?.fields?.password) {
-        setError(data.error.fields.password[0]);
+        setError(t.dynamic(data.error.fields.password[0], "validation.invalid"));
       } else {
-        setError(data?.error?.message ?? "Link is invalid or has expired.");
+        setError(t("reset.invalidLink"));
       }
     } catch {
-      setError("Something went wrong. Please try again.");
+      setError(t("common.somethingWrong"));
     } finally {
       setLoading(false);
     }
@@ -76,12 +81,12 @@ function ResetPasswordForm() {
         <Logo />
         <Card className="w-full max-w-sm shadow-lg border-border/60 text-center">
           <CardContent className="pt-8 pb-8 space-y-3">
-            <p className="text-sm text-muted-foreground">This link is invalid or has expired.</p>
+            <p className="text-sm text-muted-foreground">{t("reset.invalidLink")}</p>
             <Link
               href="/forgot-password"
               className="block text-sm text-emerald-600 hover:underline font-medium"
             >
-              Request a new link
+              {t("reset.requestNew")}
             </Link>
           </CardContent>
         </Card>
@@ -98,31 +103,29 @@ function ResetPasswordForm() {
       <Card className="w-full max-w-sm shadow-lg border-border/60">
         <CardContent className="pt-6 pb-6">
           <div className="mb-5">
-            <h2 className="text-base font-bold">Set a new password</h2>
-            <p className="text-sm text-muted-foreground mt-1">
-              Choose a strong password you haven&apos;t used before.
-            </p>
+            <h2 className="text-base font-bold">{t("reset.title")}</h2>
+            <p className="text-sm text-muted-foreground mt-1">{t("reset.subtitle")}</p>
           </div>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-1.5">
-              <Label htmlFor="password">New password</Label>
+              <Label htmlFor="password">{t("reset.newPassword")}</Label>
               <Input
                 id="password"
                 type="password"
                 autoComplete="new-password"
-                placeholder="Min. 8 chars, letter and number"
+                placeholder={t("common.passwordHint")}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
               />
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="confirm">Confirm password</Label>
+              <Label htmlFor="confirm">{t("reset.confirm")}</Label>
               <Input
                 id="confirm"
                 type="password"
                 autoComplete="new-password"
-                placeholder="Repeat your password"
+                placeholder={t("reset.confirmPlaceholder")}
                 value={confirm}
                 onChange={(e) => setConfirm(e.target.value)}
                 required
@@ -134,7 +137,7 @@ function ResetPasswordForm() {
               className="w-full bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm shadow-emerald-600/20"
               disabled={loading}
             >
-              {loading ? "Saving…" : "Set new password"}
+              {loading ? t("reset.submitting") : t("reset.submit")}
             </Button>
           </form>
         </CardContent>

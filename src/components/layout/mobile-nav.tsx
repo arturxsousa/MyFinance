@@ -15,21 +15,30 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
 import { AdminOnly } from "./admin-only";
+import { useT } from "@/i18n/client";
+import type { MessageKey } from "@/i18n/translator";
 
-const navItems = [
-  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/incomes", label: "Incomes", icon: TrendingUp },
-  { href: "/expenses", label: "Expenses", icon: TrendingDown },
-  { href: "/investments", label: "Investments", icon: PiggyBank },
-  { href: "/cards", label: "Cards", icon: CreditCard },
-  { href: "/categories", label: "Categories", icon: Tag },
+interface NavEntry {
+  href: string;
+  label: MessageKey;
+  icon: React.ElementType;
+}
+
+const navItems: NavEntry[] = [
+  { href: "/dashboard", label: "nav.dashboard", icon: LayoutDashboard },
+  { href: "/incomes", label: "nav.incomes", icon: TrendingUp },
+  { href: "/expenses", label: "nav.expenses", icon: TrendingDown },
+  { href: "/investments", label: "nav.investments", icon: PiggyBank },
+  { href: "/cards", label: "nav.cards", icon: CreditCard },
+  { href: "/categories", label: "nav.categories", icon: Tag },
 ];
 
-const settingsItem = { href: "/settings", label: "Settings", icon: Settings };
-const adminItem = { href: "/admin", label: "Admin", icon: ShieldCheck };
+const settingsItem: NavEntry = { href: "/settings", label: "nav.settings", icon: Settings };
+const adminItem: NavEntry = { href: "/admin", label: "nav.admin", icon: ShieldCheck };
 
 export function MobileNav({ isAdmin }: { isAdmin: Promise<boolean> }) {
   const pathname = usePathname();
+  const t = useT();
 
   return (
     <div className="flex flex-col h-full">
@@ -38,7 +47,7 @@ export function MobileNav({ isAdmin }: { isAdmin: Promise<boolean> }) {
         <span className="flex items-center justify-center w-8 h-8 rounded-lg bg-primary text-primary-foreground font-bold text-sm">
           MF
         </span>
-        <span className="font-semibold text-sm">My Finance</span>
+        <span className="font-semibold text-sm">{t("common.appName")}</span>
       </div>
 
       {/* Nav */}
@@ -63,11 +72,12 @@ export function MobileNav({ isAdmin }: { isAdmin: Promise<boolean> }) {
 }
 
 interface MobileNavLinkProps {
-  item: { href: string; label: string; icon: React.ElementType };
+  item: NavEntry;
   pathname: string;
 }
 
 function MobileNavLink({ item, pathname }: MobileNavLinkProps) {
+  const t = useT();
   const Icon = item.icon;
   const isActive = pathname === item.href || pathname.startsWith(item.href + "/");
   return (
@@ -80,7 +90,7 @@ function MobileNavLink({ item, pathname }: MobileNavLinkProps) {
       )}
     >
       <Icon className="h-4 w-4 shrink-0" />
-      {item.label}
+      {t(item.label)}
     </Link>
   );
 }

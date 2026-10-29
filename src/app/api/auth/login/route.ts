@@ -5,7 +5,8 @@ import { db } from "@/db/client";
 import { userRepo } from "@/db/repositories/users";
 import { refreshTokenRepo } from "@/db/repositories/refresh-tokens";
 import { signAccessToken, generateToken } from "@/lib/auth";
-import { setSessionCookies } from "@/lib/session";
+import { setSessionCookies, setLocaleCookie } from "@/lib/session";
+import { isLocale } from "@/i18n/config";
 import { writeAuditLog } from "@/lib/audit";
 import { errorResponse, handleRouteError } from "@/lib/api-error";
 
@@ -79,6 +80,7 @@ export async function POST(req: NextRequest) {
     }
 
     await setSessionCookies(result.accessToken, result.refreshToken);
+    if (isLocale(result.user.locale)) await setLocaleCookie(result.user.locale);
 
     return NextResponse.json({
       user: {

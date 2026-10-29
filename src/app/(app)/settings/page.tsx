@@ -3,15 +3,17 @@ import { withUserDb } from "@/db/with-user-db";
 import { userRepo } from "@/db/repositories/users";
 import { requireUserPage } from "@/lib/guards";
 import { toProfile } from "@/lib/profile";
+import { getT } from "@/i18n/server";
 import { Card, CardContent } from "@/components/ui/card";
 import { ProfileForm } from "./profile-form";
 
-export default function SettingsPage() {
+export default async function SettingsPage() {
+  const t = await getT();
   return (
     <div className="max-w-2xl space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold">Settings</h1>
-        <p className="text-muted-foreground mt-1">Manage your profile and preferences.</p>
+        <h1 className="text-2xl font-semibold">{t("settings.title")}</h1>
+        <p className="text-muted-foreground mt-1">{t("settings.subtitle")}</p>
       </div>
 
       <Suspense fallback={<ProfileSkeleton />}>

@@ -4,6 +4,7 @@ import { userRepo } from "@/db/repositories/users";
 import { requireUser } from "@/lib/guards";
 import { profileSchema } from "@/lib/preferences";
 import { toProfile } from "@/lib/profile";
+import { setLocaleCookie } from "@/lib/session";
 import { errorResponse, handleRouteError } from "@/lib/api-error";
 
 export async function GET() {
@@ -27,6 +28,7 @@ export async function PATCH(req: NextRequest) {
 
     const user = await withUserDb(userId, (tx) => userRepo.updateProfile(tx, userId, body.data));
     if (!user) return errorResponse("NOT_FOUND", "User not found", 404);
+    await setLocaleCookie(user.locale); // switch the UI language right away
     return NextResponse.json({ user: toProfile(user) });
   } catch (err) {
     return handleRouteError(err);

@@ -1,37 +1,35 @@
 import { z } from "zod";
+import { LOCALES } from "@/i18n/config";
 
 // Shared by the profile form (client) and PATCH /api/me (server).
+// Currency and timezone labels live in the i18n dictionaries.
 
-export const CURRENCIES = [
-  { value: "BRL", label: "Real (R$)" },
-  { value: "USD", label: "US Dollar (US$)" },
-  { value: "EUR", label: "Euro (€)" },
-  { value: "GBP", label: "Pound Sterling (£)" },
-] as const;
+export const CURRENCIES = ["BRL", "USD", "EUR", "GBP"] as const;
 
-export const LOCALES = [
-  { value: "pt-BR", label: "Português (Brasil)" },
-  { value: "en-US", label: "English (US)" },
-] as const;
+// Language names are shown in their own language, whatever the UI locale
+export const LOCALE_NAMES: Record<(typeof LOCALES)[number], string> = {
+  "pt-BR": "Português (Brasil)",
+  "en-US": "English (US)",
+};
 
 // Curated for the picker; the API accepts any valid IANA zone.
 export const TIMEZONES = [
-  { value: "America/Sao_Paulo", label: "Brasília (São Paulo, Rio, BH, Sul)" },
-  { value: "America/Bahia", label: "Bahia (Salvador)" },
-  { value: "America/Fortaleza", label: "Fortaleza (Nordeste)" },
-  { value: "America/Recife", label: "Recife" },
-  { value: "America/Belem", label: "Belém (Pará, Amapá)" },
-  { value: "America/Manaus", label: "Manaus (Amazonas)" },
-  { value: "America/Cuiaba", label: "Cuiabá (Mato Grosso)" },
-  { value: "America/Campo_Grande", label: "Campo Grande (Mato Grosso do Sul)" },
-  { value: "America/Porto_Velho", label: "Porto Velho (Rondônia)" },
-  { value: "America/Boa_Vista", label: "Boa Vista (Roraima)" },
-  { value: "America/Rio_Branco", label: "Rio Branco (Acre)" },
-  { value: "America/Noronha", label: "Fernando de Noronha" },
-  { value: "Europe/Lisbon", label: "Lisbon" },
-  { value: "Europe/London", label: "London" },
-  { value: "America/New_York", label: "New York" },
-  { value: "UTC", label: "UTC" },
+  "America/Sao_Paulo",
+  "America/Bahia",
+  "America/Fortaleza",
+  "America/Recife",
+  "America/Belem",
+  "America/Manaus",
+  "America/Cuiaba",
+  "America/Campo_Grande",
+  "America/Porto_Velho",
+  "America/Boa_Vista",
+  "America/Rio_Branco",
+  "America/Noronha",
+  "Europe/Lisbon",
+  "Europe/London",
+  "America/New_York",
+  "UTC",
 ] as const;
 
 function isValidTimeZone(tz: string): boolean {
@@ -43,16 +41,14 @@ function isValidTimeZone(tz: string): boolean {
   }
 }
 
-const values = <T extends readonly { value: string }[]>(list: T) =>
-  list.map((i) => i.value) as [T[number]["value"], ...T[number]["value"][]];
-
-// strictObject: unknown keys (role, status, email…) are rejected, not ignored — BR-09
+// strictObject: unknown keys (role, status, email…) are rejected, not ignored — BR-09.
+// Messages are i18n keys, translated by the client.
 export const profileSchema = z.strictObject({
-  firstName: z.string().trim().min(1, "First name is required").max(60),
-  lastName: z.string().trim().min(1, "Last name is required").max(80),
-  currency: z.enum(values(CURRENCIES)),
-  locale: z.enum(values(LOCALES)),
-  timezone: z.string().max(40).refine(isValidTimeZone, "Invalid timezone"),
+  firstName: z.string().trim().min(1, "validation.required").max(60, "validation.tooLong"),
+  lastName: z.string().trim().min(1, "validation.required").max(80, "validation.tooLong"),
+  currency: z.enum(CURRENCIES, { message: "validation.invalidOption" }),
+  locale: z.enum(LOCALES, { message: "validation.invalidOption" }),
+  timezone: z.string().max(40).refine(isValidTimeZone, "validation.invalidTimezone"),
 });
 
 export type ProfileInput = z.infer<typeof profileSchema>;

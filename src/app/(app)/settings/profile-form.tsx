@@ -14,13 +14,16 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { CURRENCIES, LOCALES, TIMEZONES, type ProfileInput } from "@/lib/preferences";
+import { CURRENCIES, LOCALE_NAMES, TIMEZONES, type ProfileInput } from "@/lib/preferences";
+import { LOCALES } from "@/i18n/config";
+import { useT } from "@/i18n/client";
 import type { Profile } from "@/lib/profile";
 
 type FieldErrors = Partial<Record<keyof ProfileInput, string[]>>;
 
 export function ProfileForm({ profile }: { profile: Profile }) {
   const router = useRouter();
+  const t = useT();
   const [values, setValues] = useState<ProfileInput>({
     firstName: profile.firstName,
     lastName: profile.lastName,
@@ -31,10 +34,16 @@ export function ProfileForm({ profile }: { profile: Profile }) {
   const [errors, setErrors] = useState<FieldErrors>({});
   const [saving, setSaving] = useState(false);
 
+  const currencies = CURRENCIES.map((c) => ({ value: c, label: t(`currencies.${c}`) }));
+  const locales = LOCALES.map((l) => ({ value: l, label: LOCALE_NAMES[l] }));
+  const timezones: { value: string; label: string }[] = TIMEZONES.map((tz) => ({
+    value: tz,
+    label: t(`timezones.${tz}`),
+  }));
   // Keep a saved zone selectable even if it isn't in the curated list
-  const timezones = TIMEZONES.some((t) => t.value === profile.timezone)
-    ? TIMEZONES
-    : [...TIMEZONES, { value: profile.timezone, label: profile.timezone }];
+  if (!timezones.some((tz) => tz.value === profile.timezone)) {
+    timezones.push({ value: profile.timezone, label: profile.timezone });
+  }
 
   const set = <K extends keyof ProfileInput>(key: K, value: ProfileInput[K]) => {
     setValues((v) => ({ ...v, [key]: value }));
@@ -54,7 +63,7 @@ export function ProfileForm({ profile }: { profile: Profile }) {
       });
 
       if (res.ok) {
-        toast.success("Profile saved");
+        toast.success(t("settings.saved"));
         router.refresh();
         return;
       }
@@ -62,12 +71,10 @@ export function ProfileForm({ profile }: { profile: Profile }) {
       const data = await res.json();
       if (data?.error?.fields) setErrors(data.error.fields);
       toast.error(
-        data?.error?.code === "VALIDATION_ERROR"
-          ? "Check the highlighted fields"
-          : "Could not save profile"
+        t(data?.error?.code === "VALIDATION_ERROR" ? "settings.checkFields" : "settings.saveFailed")
       );
     } catch {
-      toast.error("Something went wrong. Please try again.");
+      toast.error(t("common.somethingWrong"));
     } finally {
       setSaving(false);
     }
@@ -76,13 +83,13 @@ export function ProfileForm({ profile }: { profile: Profile }) {
   return (
     <Card className="shadow-lg border-border/60">
       <CardHeader>
-        <CardTitle>Profile</CardTitle>
-        <CardDescription>Your name and how amounts and dates are shown.</CardDescription>
+        <CardTitle>{t("settings.profileTitle")}</CardTitle>
+        <CardDescription>{t("settings.profileDescription")}</CardDescription>
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-5" noValidate>
           <div className="grid gap-4 sm:grid-cols-2">
-            <Field id="firstName" label="First name" error={errors.firstName}>
+            <Field id="firstName" label={t("common.firstName")} error={errors.firstName}>
               <Input
                 id="firstName"
                 autoComplete="given-name"
@@ -92,7 +99,7 @@ export function ProfileForm({ profile }: { profile: Profile }) {
                 maxLength={60}
               />
             </Field>
-            <Field id="lastName" label="Last name" error={errors.lastName}>
+            <Field id="lastName" label={t("common.lastName")} error={errors.lastName}>
               <Input
                 id="lastName"
                 autoComplete="family-name"
@@ -104,30 +111,30 @@ export function ProfileForm({ profile }: { profile: Profile }) {
             </Field>
           </div>
 
-          <Field id="email" label="Email">
+          <Field id="email" label={t("common.email")}>
             <Input id="email" value={profile.email} disabled readOnly />
           </Field>
 
           <div className="grid gap-4 sm:grid-cols-2">
-            <Field id="currency" label="Currency" error={errors.currency}>
+            <Field id="currency" label={t("settings.currency")} error={errors.currency}>
               <PrefSelect
                 id="currency"
-                items={CURRENCIES}
+                items={currencies}
                 value={values.currency}
                 onChange={(v) => set("currency", v as ProfileInput["currency"])}
               />
             </Field>
-            <Field id="locale" label="Language & format" error={errors.locale}>
+            <Field id="locale" label={t("settings.locale")} error={errors.locale}>
               <PrefSelect
                 id="locale"
-                items={LOCALES}
+                items={locales}
                 value={values.locale}
                 onChange={(v) => set("locale", v as ProfileInput["locale"])}
               />
             </Field>
           </div>
 
-          <Field id="timezone" label="Timezone" error={errors.timezone}>
+          <Field id="timezone" label={t("settings.timezone")} error={errors.timezone}>
             <PrefSelect
               id="timezone"
               items={timezones}
@@ -142,7 +149,7 @@ export function ProfileForm({ profile }: { profile: Profile }) {
               className="bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm shadow-emerald-600/20"
               disabled={saving}
             >
-              {saving ? "Saving…" : "Save changes"}
+              {saving ? t("settings.saving") : t("settings.save")}
             </Button>
           </div>
         </form>
@@ -162,11 +169,14 @@ function Field({
   error?: string[];
   children: React.ReactNode;
 }) {
+  const t = useT();
   return (
     <div className="space-y-1.5">
       <Label htmlFor={id}>{label}</Label>
       {children}
-      {error?.[0] && <p className="text-sm text-destructive">{error[0]}</p>}
+      {error?.[0] && (
+        <p className="text-sm text-destructive">{t.dynamic(error[0], "validation.invalid")}</p>
+      )}
     </div>
   );
 }

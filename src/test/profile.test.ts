@@ -9,6 +9,7 @@ const { jar } = vi.hoisted(() => ({ jar: new Map<string, string>() }));
 vi.mock("next/headers", () => ({
   cookies: async () => ({
     get: (name: string) => (jar.has(name) ? { name, value: jar.get(name)! } : undefined),
+    set: (name: string, value: string) => void jar.set(name, value),
   }),
 }));
 
@@ -84,6 +85,13 @@ describe("PATCH /api/me", () => {
       locale: "en-US",
       timezone: "America/Manaus",
     });
+  });
+
+  it("switches the UI language cookie to the saved locale", async () => {
+    await patch({ ...valid, locale: "pt-BR" });
+    expect(jar.get("locale")).toBe("pt-BR");
+    await patch({ ...valid, locale: "en-US" });
+    expect(jar.get("locale")).toBe("en-US");
   });
 
   it("accepts a valid IANA zone outside the curated list", async () => {

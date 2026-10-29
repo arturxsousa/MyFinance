@@ -43,15 +43,17 @@ function post(path: string, body?: unknown, headers: Record<string, string> = {}
   });
 }
 
-async function registerUser(email = newEmail(), password = PASSWORD) {
+async function registerUser(
+  email = newEmail(),
+  password = PASSWORD,
+  headers: Record<string, string> = {}
+) {
   const res = await register(
-    post("/api/auth/register", {
-      firstName: "Test",
-      lastName: "User",
-      email,
-      password,
-      acceptedTerms: true,
-    })
+    post(
+      "/api/auth/register",
+      { firstName: "Test", lastName: "User", email, password, acceptedTerms: true },
+      headers
+    )
   );
   expect(res.status).toBe(200);
   return email;
@@ -109,6 +111,31 @@ describe("POST /api/auth/register", () => {
     expect(user.accepted_terms_at).not.toBeNull();
   });
 
+  it.each([
+    ["pt-BR,pt;q=0.9,en;q=0.8", "pt-BR"],
+    ["en-US,en;q=0.9", "en-US"],
+    ["fr-FR", "en-US"],
+  ])("saves the browser language %s as locale %s", async (acceptLanguage, locale) => {
+    const email = await registerUser(newEmail(), PASSWORD, { "accept-language": acceptLanguage });
+    expect((await getUser(email)).locale).toBe(locale);
+  });
+
+  it("returns i18n keys, not English text, in field errors", async () => {
+    const email = await registerUser();
+    const res = await register(
+      post("/api/auth/register", {
+        firstName: "",
+        lastName: "User",
+        email,
+        password: "short",
+        acceptedTerms: true,
+      })
+    );
+    const { fields } = (await res.json()).error;
+    expect(fields.firstName[0]).toBe("validation.required");
+    expect(fields.password[0]).toMatch(/^validation\./);
+  });
+
   it("rejects a duplicate email case-insensitively with 409", async () => {
     const email = await registerUser();
     const res = await register(
@@ -162,6 +189,7 @@ describe("POST /api/auth/login", () => {
     const payload = await verifyAccessToken(jar.get("access_token")!);
     expect(payload?.role).toBe("USER");
     expect(jar.get("refresh_token")).toMatch(/^[0-9a-f]{64}$/);
+    expect(jar.get("locale")).toBe("en-US"); // remembered for the UI language
 
     expect((await getUser(email)).last_login_at).not.toBeNull();
     expect(await auditActions(email)).toContain("LOGIN");
@@ -315,7 +343,9 @@ describe("POST /api/auth/logout", () => {
     const refreshToken = jar.get("refresh_token")!;
 
     expect((await logout()).status).toBe(200);
-    expect(jar.size).toBe(0);
+    expect(jar.has("access_token")).toBe(false);
+    expect(jar.has("refresh_token")).toBe(false);
+    expect(jar.has("locale")).toBe(true); // UI language survives logout
 
     jar.set("refresh_token", refreshToken);
     expect((await refresh()).status).toBe(401);

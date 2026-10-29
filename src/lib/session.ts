@@ -1,4 +1,5 @@
 import { cookies } from "next/headers";
+import { LOCALE_COOKIE } from "@/i18n/config";
 
 export const ACCESS_COOKIE = "access_token";
 export const REFRESH_COOKIE = "refresh_token";
@@ -14,6 +15,12 @@ const BASE_OPTS = {
 
 export const ACCESS_COOKIE_OPTS = { ...BASE_OPTS, maxAge: 60 * 15 }; // 15 min
 export const REFRESH_COOKIE_OPTS = { ...BASE_OPTS, maxAge: 60 * 60 * 24 * 30 }; // 30 days
+
+/** Remembers the UI language across sessions; kept on logout. */
+export async function setLocaleCookie(locale: string) {
+  const jar = await cookies();
+  jar.set(LOCALE_COOKIE, locale, { ...BASE_OPTS, maxAge: 60 * 60 * 24 * 365 });
+}
 
 /** Omit refreshToken to keep the existing refresh cookie. */
 export async function setSessionCookies(accessToken: string, refreshToken?: string) {

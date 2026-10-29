@@ -8,9 +8,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
+import { useT } from "@/i18n/client";
 
 export default function RegisterPage() {
   const router = useRouter();
+  const t = useT();
   const [form, setForm] = useState({
     firstName: "",
     lastName: "",
@@ -55,14 +57,14 @@ export default function RegisterPage() {
       if (data?.error?.fields) {
         const mapped: Record<string, string> = {};
         for (const [k, msgs] of Object.entries(data.error.fields)) {
-          mapped[k] = (msgs as string[])[0];
+          mapped[k] = t.dynamic((msgs as string[])[0], "validation.invalid");
         }
         setFieldErrors(mapped);
       } else {
-        setError(data?.error?.message ?? "Something went wrong.");
+        setError(t("common.somethingWrong"));
       }
     } catch {
-      setError("Something went wrong. Please try again.");
+      setError(t("common.somethingWrong"));
     } finally {
       setLoading(false);
     }
@@ -81,8 +83,8 @@ export default function RegisterPage() {
           <TrendingUp className="h-7 w-7 text-white" strokeWidth={2.5} />
         </div>
         <div className="text-center">
-          <h1 className="text-2xl font-bold tracking-tight">My Finance</h1>
-          <p className="text-sm text-muted-foreground mt-1">Create your account</p>
+          <h1 className="text-2xl font-bold tracking-tight">{t("common.appName")}</h1>
+          <p className="text-sm text-muted-foreground mt-1">{t("register.subtitle")}</p>
         </div>
       </div>
 
@@ -91,7 +93,7 @@ export default function RegisterPage() {
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
-                <Label htmlFor="firstName">First name</Label>
+                <Label htmlFor="firstName">{t("common.firstName")}</Label>
                 <Input
                   id="firstName"
                   value={form.firstName}
@@ -103,7 +105,7 @@ export default function RegisterPage() {
                 )}
               </div>
               <div className="space-y-1.5">
-                <Label htmlFor="lastName">Last name</Label>
+                <Label htmlFor="lastName">{t("common.lastName")}</Label>
                 <Input
                   id="lastName"
                   value={form.lastName}
@@ -117,12 +119,12 @@ export default function RegisterPage() {
             </div>
 
             <div className="space-y-1.5">
-              <Label htmlFor="email">Email</Label>
+              <Label htmlFor="email">{t("common.email")}</Label>
               <Input
                 id="email"
                 type="email"
                 autoComplete="email"
-                placeholder="you@example.com"
+                placeholder={t("common.emailPlaceholder")}
                 value={form.email}
                 onChange={(e) => set("email", e.target.value)}
                 required
@@ -131,12 +133,12 @@ export default function RegisterPage() {
             </div>
 
             <div className="space-y-1.5">
-              <Label htmlFor="password">Password</Label>
+              <Label htmlFor="password">{t("common.password")}</Label>
               <Input
                 id="password"
                 type="password"
                 autoComplete="new-password"
-                placeholder="Min. 8 chars, letter and number"
+                placeholder={t("common.passwordHint")}
                 value={form.password}
                 onChange={(e) => set("password", e.target.value)}
                 required
@@ -155,13 +157,13 @@ export default function RegisterPage() {
                 required
               />
               <span className="text-sm text-muted-foreground leading-snug">
-                I agree to the{" "}
+                {t("register.termsAgree")}{" "}
                 <Link href="/terms" className="text-emerald-600 hover:underline">
-                  Terms of Service
+                  {t("register.terms")}
                 </Link>{" "}
-                and{" "}
+                {t("register.termsAnd")}{" "}
                 <Link href="/privacy" className="text-emerald-600 hover:underline">
-                  Privacy Policy
+                  {t("register.privacy")}
                 </Link>
               </span>
             </label>
@@ -176,13 +178,13 @@ export default function RegisterPage() {
               className="w-full bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm shadow-emerald-600/20"
               disabled={loading}
             >
-              {loading ? "Creating account…" : "Create account"}
+              {loading ? t("register.submitting") : t("register.submit")}
             </Button>
 
             <p className="text-center text-sm text-muted-foreground">
-              Already have an account?{" "}
+              {t("register.haveAccount")}{" "}
               <Link href="/login" className="text-emerald-600 hover:underline font-medium">
-                Sign in
+                {t("register.signIn")}
               </Link>
             </p>
           </form>

@@ -8,9 +8,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
+import { useT } from "@/i18n/client";
 
 function LoginForm() {
   const router = useRouter();
+  const t = useT();
   const searchParams = useSearchParams();
   const next = searchParams.get("next") ?? "/dashboard";
   const registered = searchParams.get("registered") === "1";
@@ -45,14 +47,14 @@ function LoginForm() {
       const code = data?.error?.code;
 
       if (code === "ACCOUNT_LOCKED") {
-        setError("Too many failed attempts. Account is temporarily locked.");
+        setError(t("login.locked"));
       } else if (code === "ACCOUNT_INACTIVE") {
-        setError("Your account is not active. Contact support.");
+        setError(t("login.inactive"));
       } else {
-        setError("Invalid email or password.");
+        setError(t("login.invalidCredentials"));
       }
     } catch {
-      setError("Something went wrong. Please try again.");
+      setError(t("common.somethingWrong"));
     } finally {
       setLoading(false);
     }
@@ -72,8 +74,8 @@ function LoginForm() {
           <TrendingUp className="h-7 w-7 text-white" strokeWidth={2.5} />
         </div>
         <div className="text-center">
-          <h1 className="text-2xl font-bold tracking-tight">My Finance</h1>
-          <p className="text-sm text-muted-foreground mt-1">Personal finance, under control</p>
+          <h1 className="text-2xl font-bold tracking-tight">{t("common.appName")}</h1>
+          <p className="text-sm text-muted-foreground mt-1">{t("common.tagline")}</p>
         </div>
       </div>
 
@@ -82,12 +84,12 @@ function LoginForm() {
         <CardContent className="pt-6 pb-6">
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-1.5">
-              <Label htmlFor="email">Email</Label>
+              <Label htmlFor="email">{t("common.email")}</Label>
               <Input
                 id="email"
                 type="email"
                 autoComplete="email"
-                placeholder="you@example.com"
+                placeholder={t("common.emailPlaceholder")}
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
@@ -95,7 +97,7 @@ function LoginForm() {
             </div>
 
             <div className="space-y-1.5">
-              <Label htmlFor="password">Password</Label>
+              <Label htmlFor="password">{t("common.password")}</Label>
               <Input
                 id="password"
                 type="password"
@@ -107,21 +109,15 @@ function LoginForm() {
               />
             </div>
 
-            {registered && (
-              <p className="text-sm text-emerald-600">Account created! You can now sign in.</p>
-            )}
-            {verified && (
-              <p className="text-sm text-emerald-600">Email verified! You can now sign in.</p>
-            )}
-            {reset && <p className="text-sm text-emerald-600">Password updated. Please sign in.</p>}
-            {verifyError && (
-              <p className="text-sm text-destructive">Verification link is invalid or expired.</p>
-            )}
+            {registered && <p className="text-sm text-emerald-600">{t("login.registered")}</p>}
+            {verified && <p className="text-sm text-emerald-600">{t("login.verified")}</p>}
+            {reset && <p className="text-sm text-emerald-600">{t("login.reset")}</p>}
+            {verifyError && <p className="text-sm text-destructive">{t("login.verifyError")}</p>}
             {error && <p className="text-sm text-destructive">{error}</p>}
 
             <div className="flex items-center justify-between">
               <Link href="/forgot-password" className="text-sm text-emerald-600 hover:underline">
-                Forgot password?
+                {t("login.forgot")}
               </Link>
             </div>
 
@@ -130,20 +126,20 @@ function LoginForm() {
               className="w-full bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm shadow-emerald-600/20"
               disabled={loading}
             >
-              {loading ? "Signing in…" : "Sign in"}
+              {loading ? t("login.submitting") : t("login.submit")}
             </Button>
 
             <p className="text-center text-sm text-muted-foreground">
-              No account?{" "}
+              {t("login.noAccount")}{" "}
               <Link href="/register" className="text-emerald-600 hover:underline font-medium">
-                Sign up
+                {t("login.signUp")}
               </Link>
             </p>
           </form>
         </CardContent>
       </Card>
 
-      <p className="mt-6 text-xs text-muted-foreground">Your data is encrypted and never shared.</p>
+      <p className="mt-6 text-xs text-muted-foreground">{t("common.footer")}</p>
     </div>
   );
 }

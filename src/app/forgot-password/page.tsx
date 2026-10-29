@@ -7,8 +7,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
+import { useT } from "@/i18n/client";
 
 export default function ForgotPasswordPage() {
+  const t = useT();
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
   const [done, setDone] = useState(false);
@@ -39,7 +41,7 @@ export default function ForgotPasswordPage() {
         <TrendingUp className="h-7 w-7 text-white" strokeWidth={2.5} />
       </div>
       <div className="text-center">
-        <h1 className="text-2xl font-bold tracking-tight">My Finance</h1>
+        <h1 className="text-2xl font-bold tracking-tight">{t("common.appName")}</h1>
       </div>
     </div>
   );
@@ -53,16 +55,15 @@ export default function ForgotPasswordPage() {
         {logo}
         <Card className="w-full max-w-sm shadow-lg border-border/60 text-center">
           <CardContent className="pt-8 pb-8 space-y-3">
-            <h2 className="text-lg font-bold">Check your inbox</h2>
+            <h2 className="text-lg font-bold">{t("forgot.doneTitle")}</h2>
             <p className="text-sm text-muted-foreground">
-              If an account exists for <strong>{email}</strong>, you&apos;ll receive a password
-              reset link shortly.
+              {t.rich("forgot.doneBody", { email: <strong key="email">{email}</strong> })}
             </p>
             <Link
               href="/login"
               className="block text-sm text-emerald-600 hover:underline font-medium pt-2"
             >
-              Back to sign in
+              {t("common.backToSignIn")}
             </Link>
           </CardContent>
         </Card>
@@ -79,19 +80,17 @@ export default function ForgotPasswordPage() {
       <Card className="w-full max-w-sm shadow-lg border-border/60">
         <CardContent className="pt-6 pb-6">
           <div className="mb-5">
-            <h2 className="text-base font-bold">Forgot your password?</h2>
-            <p className="text-sm text-muted-foreground mt-1">
-              Enter your email and we&apos;ll send you a reset link.
-            </p>
+            <h2 className="text-base font-bold">{t("forgot.title")}</h2>
+            <p className="text-sm text-muted-foreground mt-1">{t("forgot.subtitle")}</p>
           </div>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-1.5">
-              <Label htmlFor="email">Email</Label>
+              <Label htmlFor="email">{t("common.email")}</Label>
               <Input
                 id="email"
                 type="email"
                 autoComplete="email"
-                placeholder="you@example.com"
+                placeholder={t("common.emailPlaceholder")}
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
@@ -102,11 +101,11 @@ export default function ForgotPasswordPage() {
               className="w-full bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm shadow-emerald-600/20"
               disabled={loading}
             >
-              {loading ? "Sending…" : "Send reset link"}
+              {loading ? t("forgot.submitting") : t("forgot.submit")}
             </Button>
             <p className="text-center text-sm text-muted-foreground">
               <Link href="/login" className="text-emerald-600 hover:underline font-medium">
-                Back to sign in
+                {t("common.backToSignIn")}
               </Link>
             </p>
           </form>
