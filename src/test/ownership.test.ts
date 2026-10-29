@@ -78,9 +78,12 @@ describe("BR-01: user B cannot touch user A's data", () => {
   });
 
   it("B's monthly list does not include A's income", async () => {
-    const now = new Date();
     const rows = await withUserDb(USER_B, (tx) =>
-      incomeRepo.listByMonth(tx, now.getFullYear(), now.getMonth() + 1)
+      incomeRepo.list(
+        tx,
+        { from: "1900-01-01", to: "2100-12-31" },
+        { sort: "date_desc", limit: 100, offset: 0 }
+      )
     );
     expect(rows.find((r) => r.id === incomeA)).toBeUndefined();
   });

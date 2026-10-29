@@ -31,6 +31,16 @@ describe("proxy (route protection)", () => {
     expect(location.searchParams.get("next")).toBe("/dashboard");
   });
 
+  it.each(["/api/expenses", "/api/me", "/api/categories?kind=EXPENSE"])(
+    "anonymous API call %s gets a JSON 401, not a redirect",
+    async (path) => {
+      const res = await proxy(request(path));
+      expect(res.status).toBe(401);
+      expect(res.headers.get("location")).toBeNull();
+      expect((await res.json()).error.code).toBe("UNAUTHORIZED");
+    }
+  );
+
   it("treats an invalid token as anonymous", async () => {
     const res = await proxy(request("/dashboard", "bogus"));
     expect(new URL(res.headers.get("location")!).pathname).toBe("/login");

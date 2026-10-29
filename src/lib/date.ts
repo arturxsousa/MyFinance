@@ -1,62 +1,76 @@
-import { format, parseISO, startOfMonth, endOfMonth } from "date-fns";
-import { toZonedTime } from "date-fns-tz";
-import { ptBR, enUS } from "date-fns/locale";
-import type { Locale } from "date-fns";
+import { formatInTimeZone } from "date-fns-tz";
+
+// Two kinds of dates live in this app:
+// - Calendar dates ("YYYY-MM-DD": entry_date) have no time and no timezone.
+//   They must never be shifted, or "2026-10-01" becomes 30/09 on a UTC server.
+// - Instants (timestamps) are shown in the user's timezone.
+// The timezone matters for one more thing: what "today" is (BR-03).
 
 const DEFAULT_TIMEZONE = "America/Sao_Paulo";
 const DEFAULT_LOCALE = "pt-BR";
 
-const LOCALE_MAP: Record<string, Locale> = {
-  "pt-BR": ptBR,
-  "en-US": enUS,
-};
-
-function getLocale(locale: string = DEFAULT_LOCALE): Locale {
-  return LOCALE_MAP[locale] ?? ptBR;
+function parseCalendarDate(date: string): Date {
+  const [y, m, d] = date.split("-").map(Number);
+  return new Date(Date.UTC(y!, m! - 1, d ?? 1));
 }
 
-// Format a date for display (dd/MM/yyyy or MM/dd/yyyy depending on locale).
+/** Today's calendar date in the user's timezone, "YYYY-MM-DD". */
+export function todayInTimeZone(timezone: string = DEFAULT_TIMEZONE, now = new Date()): string {
+  return formatInTimeZone(now, timezone, "yyyy-MM-dd");
+}
+
+/** "YYYY-MM" for the current month in the user's timezone. */
+export function currentYearMonth(timezone: string = DEFAULT_TIMEZONE, now = new Date()): string {
+  return todayInTimeZone(timezone, now).slice(0, 7);
+}
+
+/** First and last calendar day of a "YYYY-MM" month, inclusive. */
+export function monthDateRange(yearMonth: string): { from: string; to: string } {
+  const [y, m] = yearMonth.split("-").map(Number);
+  const lastDay = new Date(Date.UTC(y!, m!, 0)).getUTCDate();
+  return { from: `${yearMonth}-01`, to: `${yearMonth}-${String(lastDay).padStart(2, "0")}` };
+}
+
+/** "2026-10" + 1 → "2026-11"; "2026-01" − 1 → "2025-12" */
+export function shiftMonth(yearMonth: string, delta: number): string {
+  const [y, m] = yearMonth.split("-").map(Number);
+  const d = new Date(Date.UTC(y!, m! - 1 + delta, 1));
+  return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}`;
+}
+
+/** BR-03: entries dated after today (in the user's timezone) are "scheduled". */
+export function isScheduled(
+  entryDate: string,
+  timezone: string = DEFAULT_TIMEZONE,
+  now = new Date()
+) {
+  return entryDate > todayInTimeZone(timezone, now); // ISO dates compare as strings
+}
+
+/**
+ * Calendar date → "29/10/2026" (pt-BR) or "10/29/2026" (en-US).
+ * A Date instance is treated as an instant and shown in `timezone`.
+ */
 export function formatDate(
   date: Date | string,
   locale: string = DEFAULT_LOCALE,
   timezone: string = DEFAULT_TIMEZONE
 ): string {
-  const d = typeof date === "string" ? parseISO(date) : date;
-  const zoned = toZonedTime(d, timezone);
-  const pattern = locale === "en-US" ? "MM/dd/yyyy" : "dd/MM/yyyy";
-  return format(zoned, pattern, { locale: getLocale(locale) });
+  const isCalendar = typeof date === "string";
+  return new Intl.DateTimeFormat(locale, {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    timeZone: isCalendar ? "UTC" : timezone,
+  }).format(isCalendar ? parseCalendarDate(date) : date);
 }
 
-// Returns the start and end of a given month string "YYYY-MM" in the user's timezone.
-// BR-03: month boundaries are in the user's timezone.
-export function getMonthBoundaries(
-  yearMonth: string,
-  timezone: string = DEFAULT_TIMEZONE
-): { start: Date; end: Date } {
-  const [year, month] = yearMonth.split("-").map(Number);
-  // Build the first day of the month at midnight in the target timezone
-  const localMidnight = new Date(year, month - 1, 1, 0, 0, 0, 0);
-  const zoned = toZonedTime(localMidnight, timezone);
-  return {
-    start: startOfMonth(zoned),
-    end: endOfMonth(zoned),
-  };
-}
-
-// Returns "YYYY-MM" for the current month in the user's timezone.
-export function currentYearMonth(timezone: string = DEFAULT_TIMEZONE): string {
-  const now = toZonedTime(new Date(), timezone);
-  return format(now, "yyyy-MM");
-}
-
-// Formats a month string "YYYY-MM" as "October 2026" or "Outubro de 2026".
-export function formatMonthLabel(
-  yearMonth: string,
-  locale: string = DEFAULT_LOCALE,
-  timezone: string = DEFAULT_TIMEZONE
-): string {
-  const [year, month] = yearMonth.split("-").map(Number);
-  const d = toZonedTime(new Date(year, month - 1, 1), timezone);
-  const pattern = locale === "en-US" ? "MMMM yyyy" : "MMMM 'de' yyyy";
-  return format(d, pattern, { locale: getLocale(locale) });
+/** "2026-10" → "October 2026" / "Outubro de 2026" */
+export function formatMonthLabel(yearMonth: string, locale: string = DEFAULT_LOCALE): string {
+  const label = new Intl.DateTimeFormat(locale, {
+    month: "long",
+    year: "numeric",
+    timeZone: "UTC",
+  }).format(parseCalendarDate(yearMonth));
+  return label.charAt(0).toLocaleUpperCase(locale) + label.slice(1);
 }

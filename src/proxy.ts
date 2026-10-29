@@ -94,6 +94,10 @@ export async function proxy(req: NextRequest) {
   }
 
   if (!session.payload) {
+    // API callers (fetch) need a JSON 401 they can handle, not the login page's HTML
+    if (isUnder(pathname, "/api")) {
+      return applyCookies(errorResponse("UNAUTHORIZED", "Not authenticated", 401), session);
+    }
     const loginUrl = req.nextUrl.clone();
     loginUrl.pathname = "/login";
     loginUrl.searchParams.set("next", pathname);
