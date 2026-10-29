@@ -21,9 +21,6 @@
 /build
 /dist
 
-# drizzle
-drizzle/meta/
-
 # misc
 .DS_Store
 *.pem
