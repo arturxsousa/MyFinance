@@ -166,6 +166,9 @@ const enUS = {
     deleteBody:
       "If it's already used by any entry, it will be archived instead so your history stays intact.",
     deleting: "Deleting…",
+    selectPlaceholder: "Select a category",
+    archivedSuffix: "archived",
+    noneAvailable: "No categories available",
   },
   kinds: {
     INCOME: "Income",

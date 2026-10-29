@@ -169,6 +169,9 @@ const ptBR: Messages = {
     deleteBody:
       "Se ela já estiver em uso em algum lançamento, será arquivada para preservar seu histórico.",
     deleting: "Excluindo…",
+    selectPlaceholder: "Selecione uma categoria",
+    archivedSuffix: "arquivada",
+    noneAvailable: "Nenhuma categoria disponível",
   },
   kinds: {
     INCOME: "Receita",
