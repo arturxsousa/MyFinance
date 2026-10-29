@@ -6,6 +6,7 @@ import { toProfile } from "@/lib/profile";
 import { getT } from "@/i18n/server";
 import { Card, CardContent } from "@/components/ui/card";
 import { ProfileForm } from "./profile-form";
+import { PasswordForm } from "./password-form";
 
 export default async function SettingsPage() {
   const t = await getT();
@@ -19,6 +20,8 @@ export default async function SettingsPage() {
       <Suspense fallback={<ProfileSkeleton />}>
         <ProfileSection />
       </Suspense>
+
+      <PasswordForm />
     </div>
   );
 }

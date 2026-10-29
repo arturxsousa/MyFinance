@@ -1,4 +1,4 @@
-import { and, eq, gt, isNull } from "drizzle-orm";
+import { and, eq, gt, isNull, ne } from "drizzle-orm";
 import { refreshToken } from "../schema/users";
 import type { UserTx } from "../with-user-db";
 
@@ -56,10 +56,17 @@ export const refreshTokenRepo = {
       .where(eq(refreshToken.id, id));
   },
 
-  async revokeAllForUser(tx: UserTx, userId: string): Promise<void> {
+  /** Pass `exceptHash` to keep the caller's own session alive. */
+  async revokeAllForUser(tx: UserTx, userId: string, exceptHash?: string): Promise<void> {
     await tx
       .update(refreshToken)
       .set({ revokedAt: new Date() })
-      .where(and(eq(refreshToken.userId, userId), isNull(refreshToken.revokedAt)));
+      .where(
+        and(
+          eq(refreshToken.userId, userId),
+          isNull(refreshToken.revokedAt),
+          exceptHash ? ne(refreshToken.tokenHash, exceptHash) : undefined
+        )
+      );
   },
 };

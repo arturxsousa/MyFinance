@@ -23,7 +23,7 @@ import { POST as register } from "@/app/api/auth/register/route";
 import { POST as login } from "@/app/api/auth/login/route";
 import { POST as logout } from "@/app/api/auth/logout/route";
 import { POST as refresh } from "@/app/api/auth/refresh/route";
-import { POST as changePassword } from "@/app/api/auth/change-password/route";
+import { POST as changePassword } from "@/app/api/me/password/route";
 import { verifyAccessToken, hashToken } from "@/lib/auth";
 import { refreshSession } from "@/lib/refresh-session";
 
@@ -325,6 +325,22 @@ describe("POST /api/auth/refresh", () => {
     expect((await refresh()).status).toBe(401);
   });
 
+  it("a token ended by logout elsewhere is rejected without killing other sessions", async () => {
+    const email = await registerUser();
+    await doLogin(email); // device A
+    const deviceA = jar.get("refresh_token")!;
+    await doLogin(email); // device B
+    const deviceB = jar.get("refresh_token")!;
+
+    jar.set("refresh_token", deviceA);
+    await logout(); // A logs out, but suppose a stale tab still sends A's cookie
+    jar.set("refresh_token", deviceA);
+    expect((await refresh()).status).toBe(401);
+
+    jar.set("refresh_token", deviceB);
+    expect((await refresh()).status).toBe(200);
+  });
+
   it("rejects an expired refresh token", async () => {
     const email = await registerUser();
     await doLogin(email);
@@ -358,19 +374,18 @@ describe("POST /api/auth/logout", () => {
 
 // ── UC-06 Change password ─────────────────────────────────────────────────────
 
-describe("POST /api/auth/change-password", () => {
+describe("POST /api/me/password", () => {
   async function loggedIn() {
     const email = await registerUser();
     await doLogin(email);
-    const cookie = `access_token=${jar.get("access_token")}`;
-    const change = (body: unknown) =>
-      changePassword(post("/api/auth/change-password", body, { cookie }));
+    // Session comes from the mocked cookie jar, filled by doLogin
+    const change = (body: unknown) => changePassword(post("/api/me/password", body));
     return { email, change };
   }
 
   it("requires authentication", async () => {
     const res = await changePassword(
-      post("/api/auth/change-password", { currentPassword: PASSWORD, newPassword: "Br4ndNewPass" })
+      post("/api/me/password", { currentPassword: PASSWORD, newPassword: "Br4ndNewPass" })
     );
     expect(res.status).toBe(401);
   });
@@ -382,6 +397,35 @@ describe("POST /api/auth/change-password", () => {
     expect((await doLogin(email)).status).toBe(401);
     expect((await doLogin(email, "Br4ndNewPass")).status).toBe(200);
     expect(await auditActions(email)).toContain("PASSWORD_CHANGE");
+  });
+
+  it("signs out other devices but keeps the current session", async () => {
+    const email = await registerUser();
+    await doLogin(email); // device A
+    const deviceA = jar.get("refresh_token")!;
+    await doLogin(email); // device B — the one changing the password
+    const deviceB = jar.get("refresh_token")!;
+
+    const res = await changePassword(
+      post("/api/me/password", { currentPassword: PASSWORD, newPassword: "Br4ndNewPass" })
+    );
+    expect(res.status).toBe(200);
+
+    jar.set("refresh_token", deviceA);
+    expect((await refresh()).status).toBe(401);
+
+    jar.set("refresh_token", deviceB);
+    expect((await refresh()).status).toBe(200);
+  });
+
+  it("returns translatable field errors", async () => {
+    const { change } = await loggedIn();
+    const wrong = await (
+      await change({ currentPassword: "Wrong-pass1", newPassword: "Br4ndNewPass" })
+    ).json();
+    expect(wrong.error.fields.currentPassword).toEqual(["password.wrongCurrent"]);
+    const same = await (await change({ currentPassword: PASSWORD, newPassword: PASSWORD })).json();
+    expect(same.error.fields.newPassword).toEqual(["password.sameAsCurrent"]);
   });
 
   it("rejects a wrong current password", async () => {

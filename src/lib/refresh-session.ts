@@ -26,14 +26,17 @@ export async function refreshSession(rawRefreshToken: string): Promise<RefreshRe
     if (!token) return { ok: false };
 
     if (token.revokedAt) {
+      // Ended by logout / password change / reset, not rotation: other browsers
+      // still hold these cookies, so presenting one is expected — just reject.
+      if (!token.replacedById) return { ok: false };
+
       const withinGrace = Date.now() - token.revokedAt.getTime() < ROTATION_GRACE_MS;
-      const successor =
-        withinGrace && token.replacedById
-          ? await refreshTokenRepo.findActiveById(tx, token.replacedById)
-          : undefined;
+      const successor = withinGrace
+        ? await refreshTokenRepo.findActiveById(tx, token.replacedById)
+        : undefined;
 
       if (!successor) {
-        // Reuse of a revoked token — likely stolen. Kill every session.
+        // A rotated token replayed outside the race window — likely stolen. Kill every session.
         await refreshTokenRepo.revokeAllForUser(tx, token.userId);
         return { ok: false };
       }
