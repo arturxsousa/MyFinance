@@ -1,8 +1,5 @@
 import { NextResponse } from "next/server";
-import { db } from "@/db/client";
-import { userRepo } from "@/db/repositories/users";
-import { refreshTokenRepo } from "@/db/repositories/refresh-tokens";
-import { signAccessToken, generateToken, hashToken } from "@/lib/auth";
+import { refreshSession } from "@/lib/refresh-session";
 import { setSessionCookies, clearSessionCookies, getSessionCookies } from "@/lib/session";
 import { errorResponse, handleRouteError } from "@/lib/api-error";
 
@@ -11,38 +8,9 @@ export async function POST() {
     const { refreshToken } = await getSessionCookies();
     if (!refreshToken) return errorResponse("UNAUTHORIZED", "No refresh token", 401);
 
-    const hash = hashToken(refreshToken);
+    const result = await refreshSession(refreshToken);
 
-    const result = await db.transaction(async (tx) => {
-      const token = await refreshTokenRepo.findByHash(tx, hash);
-
-      // Reuse detection: token exists but was already revoked — likely stolen
-      if (token?.revokedAt) {
-        await refreshTokenRepo.revokeAllForUser(tx, token.userId);
-        return { code: "REUSE_DETECTED" as const };
-      }
-
-      if (!token || token.expiresAt <= new Date()) return { code: "INVALID_TOKEN" as const };
-
-      const user = await userRepo.findById(tx, token.userId);
-      if (!user || user.status !== "ACTIVE") return { code: "INVALID_TOKEN" as const };
-
-      // Rotate: revoke old, issue new
-      await refreshTokenRepo.revoke(tx, token.id);
-      const { raw, hash: newHash } = generateToken();
-      await refreshTokenRepo.create(tx, {
-        userId: user.id,
-        tokenHash: newHash,
-        expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
-        userAgent: token.userAgent ?? undefined,
-        ip: token.ip ?? undefined,
-      });
-
-      const accessToken = await signAccessToken({ sub: user.id, role: user.role });
-      return { code: "OK" as const, accessToken, refreshToken: raw };
-    });
-
-    if (result.code === "REUSE_DETECTED" || result.code === "INVALID_TOKEN") {
+    if (!result.ok) {
       await clearSessionCookies();
       return errorResponse("UNAUTHORIZED", "Session expired. Please log in again.", 401);
     }

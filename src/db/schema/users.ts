@@ -51,6 +51,8 @@ export const refreshToken = pgTable(
     tokenHash: text("token_hash").notNull().unique(),
     expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
     revokedAt: timestamp("revoked_at", { withTimezone: true }),
+    // Set when revoked by rotation — distinguishes a concurrent refresh from token theft
+    replacedById: uuid("replaced_by_id"),
     userAgent: text("user_agent"),
     ip: inet("ip"),
     createdAt: timestamp("created_at", { withTimezone: true })

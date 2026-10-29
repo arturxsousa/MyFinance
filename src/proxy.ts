@@ -1,5 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
-import { verifyAccessToken } from "@/lib/auth";
+import { verifyAccessToken, type AccessTokenPayload } from "@/lib/auth";
+import { refreshSession, type RefreshResult } from "@/lib/refresh-session";
+import {
+  ACCESS_COOKIE,
+  REFRESH_COOKIE,
+  ACCESS_COOKIE_OPTS,
+  REFRESH_COOKIE_OPTS,
+} from "@/lib/session";
 
 const PUBLIC_PATHS = [
   "/login",
@@ -19,31 +26,79 @@ const PUBLIC_PATHS = [
 
 const AUTH_ONLY_PATHS = ["/login", "/register", "/forgot-password", "/reset-password"];
 
+interface ResolvedSession {
+  payload: AccessTokenPayload | null;
+  /** New tokens minted by a silent refresh, to be written back as cookies */
+  refreshed?: Extract<RefreshResult, { ok: true }>;
+  /** The refresh cookie was rejected and should be cleared */
+  clear?: boolean;
+}
+
+// Valid access token → use it. Expired/missing but refresh cookie present →
+// rotate silently so the user isn't logged out every 15 minutes.
+async function resolveSession(req: NextRequest): Promise<ResolvedSession> {
+  const accessToken = req.cookies.get(ACCESS_COOKIE)?.value;
+  const payload = accessToken ? await verifyAccessToken(accessToken) : null;
+  if (payload) return { payload };
+
+  const refreshToken = req.cookies.get(REFRESH_COOKIE)?.value;
+  if (!refreshToken) return { payload: null };
+
+  const result = await refreshSession(refreshToken);
+  if (!result.ok) return { payload: null, clear: true };
+
+  return { payload: await verifyAccessToken(result.accessToken), refreshed: result };
+}
+
+function applyCookies(res: NextResponse, session: ResolvedSession) {
+  if (session.refreshed) {
+    res.cookies.set(ACCESS_COOKIE, session.refreshed.accessToken, ACCESS_COOKIE_OPTS);
+    if (session.refreshed.refreshToken) {
+      res.cookies.set(REFRESH_COOKIE, session.refreshed.refreshToken, REFRESH_COOKIE_OPTS);
+    }
+  } else if (session.clear) {
+    res.cookies.delete(ACCESS_COOKIE);
+    res.cookies.delete(REFRESH_COOKIE);
+  }
+  return res;
+}
+
+/** Continue to the app; a refreshed access token is also forwarded on the request
+ *  so server components and route handlers see it in this same request. */
+function next(req: NextRequest, session: ResolvedSession) {
+  if (!session.refreshed) return NextResponse.next();
+  req.cookies.set(ACCESS_COOKIE, session.refreshed.accessToken);
+  return NextResponse.next({ request: { headers: new Headers(req.headers) } });
+}
+
 export async function proxy(req: NextRequest) {
   const { pathname } = req.nextUrl;
+  const isAuthOnly = AUTH_ONLY_PATHS.some((p) => pathname.startsWith(p));
+  const isPublic = PUBLIC_PATHS.some((p) => pathname.startsWith(p));
 
-  const token = req.cookies.get("access_token")?.value;
-  const payload = token ? await verifyAccessToken(token) : null;
+  // Public API/pages that don't care who is logged in — skip session work
+  if (isPublic && !isAuthOnly) return NextResponse.next();
+
+  const session = await resolveSession(req);
 
   // Logged-in users should not access auth pages
-  if (payload && AUTH_ONLY_PATHS.some((p) => pathname.startsWith(p))) {
-    return NextResponse.redirect(new URL("/dashboard", req.url));
+  if (isAuthOnly) {
+    const res = session.payload
+      ? NextResponse.redirect(new URL("/dashboard", req.url))
+      : NextResponse.next();
+    return applyCookies(res, session);
   }
 
-  if (PUBLIC_PATHS.some((p) => pathname.startsWith(p))) {
-    return NextResponse.next();
-  }
-
-  if (!payload) {
+  if (!session.payload) {
     const loginUrl = req.nextUrl.clone();
     loginUrl.pathname = "/login";
     loginUrl.searchParams.set("next", pathname);
-    return NextResponse.redirect(loginUrl);
+    return applyCookies(NextResponse.redirect(loginUrl), session);
   }
 
-  const res = NextResponse.next();
-  res.headers.set("x-user-id", payload.sub);
-  res.headers.set("x-user-role", payload.role);
+  const res = applyCookies(next(req, session), session);
+  res.headers.set("x-user-id", session.payload.sub);
+  res.headers.set("x-user-role", session.payload.role);
   return res;
 }
 

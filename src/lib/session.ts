@@ -1,7 +1,7 @@
 import { cookies } from "next/headers";
 
-const ACCESS_COOKIE = "access_token";
-const REFRESH_COOKIE = "refresh_token";
+export const ACCESS_COOKIE = "access_token";
+export const REFRESH_COOKIE = "refresh_token";
 
 const IS_PROD = process.env.NODE_ENV === "production";
 
@@ -12,10 +12,14 @@ const BASE_OPTS = {
   path: "/",
 };
 
-export async function setSessionCookies(accessToken: string, refreshToken: string) {
+export const ACCESS_COOKIE_OPTS = { ...BASE_OPTS, maxAge: 60 * 15 }; // 15 min
+export const REFRESH_COOKIE_OPTS = { ...BASE_OPTS, maxAge: 60 * 60 * 24 * 30 }; // 30 days
+
+/** Omit refreshToken to keep the existing refresh cookie. */
+export async function setSessionCookies(accessToken: string, refreshToken?: string) {
   const jar = await cookies();
-  jar.set(ACCESS_COOKIE, accessToken, { ...BASE_OPTS, maxAge: 60 * 15 }); // 15 min
-  jar.set(REFRESH_COOKIE, refreshToken, { ...BASE_OPTS, maxAge: 60 * 60 * 24 * 30 }); // 30 days
+  jar.set(ACCESS_COOKIE, accessToken, ACCESS_COOKIE_OPTS);
+  if (refreshToken) jar.set(REFRESH_COOKIE, refreshToken, REFRESH_COOKIE_OPTS);
 }
 
 export async function clearSessionCookies() {
