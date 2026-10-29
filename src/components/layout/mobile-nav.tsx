@@ -36,7 +36,14 @@ const navItems: NavEntry[] = [
 const settingsItem: NavEntry = { href: "/settings", label: "nav.settings", icon: Settings };
 const adminItem: NavEntry = { href: "/admin", label: "nav.admin", icon: ShieldCheck };
 
-export function MobileNav({ isAdmin }: { isAdmin: Promise<boolean> }) {
+export function MobileNav({
+  isAdmin,
+  onNavigate,
+}: {
+  isAdmin: Promise<boolean>;
+  /** Called when a link is tapped, so the sheet can close */
+  onNavigate?: () => void;
+}) {
   const pathname = usePathname();
   const t = useT();
 
@@ -53,7 +60,7 @@ export function MobileNav({ isAdmin }: { isAdmin: Promise<boolean> }) {
       {/* Nav */}
       <nav className="flex-1 flex flex-col gap-0.5 p-2 overflow-y-auto">
         {navItems.map((item) => (
-          <MobileNavLink key={item.href} item={item} pathname={pathname} />
+          <MobileNavLink key={item.href} item={item} pathname={pathname} onNavigate={onNavigate} />
         ))}
       </nav>
 
@@ -61,9 +68,9 @@ export function MobileNav({ isAdmin }: { isAdmin: Promise<boolean> }) {
       <div className="p-2">
         <Separator className="mb-2" />
         <nav className="flex flex-col gap-0.5">
-          <MobileNavLink item={settingsItem} pathname={pathname} />
+          <MobileNavLink item={settingsItem} pathname={pathname} onNavigate={onNavigate} />
           <AdminOnly isAdmin={isAdmin}>
-            <MobileNavLink item={adminItem} pathname={pathname} />
+            <MobileNavLink item={adminItem} pathname={pathname} onNavigate={onNavigate} />
           </AdminOnly>
         </nav>
       </div>
@@ -74,15 +81,17 @@ export function MobileNav({ isAdmin }: { isAdmin: Promise<boolean> }) {
 interface MobileNavLinkProps {
   item: NavEntry;
   pathname: string;
+  onNavigate?: () => void;
 }
 
-function MobileNavLink({ item, pathname }: MobileNavLinkProps) {
+function MobileNavLink({ item, pathname, onNavigate }: MobileNavLinkProps) {
   const t = useT();
   const Icon = item.icon;
   const isActive = pathname === item.href || pathname.startsWith(item.href + "/");
   return (
     <Link
       href={item.href}
+      onClick={onNavigate}
       className={cn(
         "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
         "text-muted-foreground hover:text-foreground hover:bg-muted",
