@@ -38,6 +38,13 @@ export function shiftMonth(yearMonth: string, delta: number): string {
   return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}`;
 }
 
+/** "2026-10-31" + 1 → "2026-11-01" */
+export function addDays(date: string, days: number): string {
+  const d = parseCalendarDate(date);
+  d.setUTCDate(d.getUTCDate() + days);
+  return d.toISOString().slice(0, 10);
+}
+
 /** BR-03: entries dated after today (in the user's timezone) are "scheduled". */
 export function isScheduled(
   entryDate: string,
@@ -63,6 +70,13 @@ export function formatDate(
     year: "numeric",
     timeZone: isCalendar ? "UTC" : timezone,
   }).format(isCalendar ? parseCalendarDate(date) : date);
+}
+
+/** "2026-09" → "September" / "setembro" — for inline text like "vs. setembro" */
+export function formatMonthName(yearMonth: string, locale: string = DEFAULT_LOCALE): string {
+  return new Intl.DateTimeFormat(locale, { month: "long", timeZone: "UTC" }).format(
+    parseCalendarDate(yearMonth)
+  );
 }
 
 /** "2026-10" → "October 2026" / "Outubro de 2026" */

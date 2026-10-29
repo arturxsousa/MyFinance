@@ -292,6 +292,36 @@ describe("GET /{kind}", () => {
     expect(ids.size).toBe(45); // no row repeated or skipped across pages
   });
 
+  it("returns month stats that follow the same filters", async () => {
+    await seed([
+      { amount: "100", date: "2031-02-10", description: "Feb salary" },
+      { amount: "40", date: "2031-02-11", cat: cat.bonus },
+      { amount: "150", date: `${MONTH}-05`, description: "Big one" },
+      { amount: "50", date: `${MONTH}-06` },
+      { amount: "999", date: `${MONTH}-07`, deleted: true },
+    ]);
+    const { stats } = (await list(`month=${MONTH}`)).body;
+    expect(stats).toMatchObject({
+      previousMonth: "2031-02",
+      previousTotal: "140.00",
+      previousCount: 2,
+    });
+    expect(stats.largest).toMatchObject({ amount: "150.00", description: "Big one" });
+    // 2031 is entirely in the future, so the whole month is scheduled
+    expect(stats).toMatchObject({ scheduledTotal: "200.00", scheduledCount: 2 });
+
+    const filtered = (await list(`month=${MONTH}&category=${cat.bonus}`)).body.stats;
+    expect(filtered).toMatchObject({ previousTotal: "40.00", largest: null, scheduledCount: 0 });
+  });
+
+  it("counts as scheduled only the entries after today", async () => {
+    const today = todayInTimeZone("America/Sao_Paulo");
+    const month = today.slice(0, 7);
+    await seed([{ amount: "10", date: today }]);
+    const { stats } = (await list(`month=${month}`)).body;
+    expect(stats.scheduledCount).toBe(0);
+  });
+
   it("rejects a bad query with 422", async () => {
     expect((await list("month=2031-13")).status).toBe(422);
     expect((await list("sort=random")).status).toBe(422);

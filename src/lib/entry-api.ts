@@ -5,13 +5,21 @@ import { userRepo } from "@/db/repositories/users";
 import { requireUser } from "@/lib/guards";
 import { parseId, requireOwned } from "@/lib/ownership";
 import { checkEntryCategory } from "@/lib/entry-category";
-import { currentYearMonth, isScheduled, monthDateRange } from "@/lib/date";
+import {
+  addDays,
+  currentYearMonth,
+  isScheduled,
+  monthDateRange,
+  shiftMonth,
+  todayInTimeZone,
+} from "@/lib/date";
 import {
   PAGE_SIZE,
   createEntrySchemas,
   listEntriesQuerySchema,
   updateEntrySchemas,
   type EntryKind,
+  type ListEntriesQuery,
 } from "@/lib/entries";
 import { ApiError, errorResponse, handleRouteError } from "@/lib/api-error";
 
@@ -54,6 +62,55 @@ const categoryError = (error: string) =>
 
 const notFound = () => errorResponse("NOT_FOUND", "Resource not found", 404);
 
+/**
+ * One month of entries plus the total and count for the same filters.
+ * Shared by GET /{kind} and the list pages.
+ */
+export async function listEntries(userId: string, kind: EntryKind, query: ListEntriesQuery) {
+  const repo = entryRepos[kind];
+  const { month, category, q, sort, page } = query;
+
+  return withUserDb(userId, async (tx) => {
+    const timezone = await userTimezone(tx, userId);
+    const ym = month ?? currentYearMonth(timezone); // default: this month, user's clock
+    const filter = { ...monthDateRange(ym), categoryId: category, q };
+    const range = monthDateRange(ym);
+    const previousMonth = shiftMonth(ym, -1);
+    // BR-03: "scheduled" = dated after today in the user's timezone
+    const tomorrow = addDays(todayInTimeZone(timezone), 1);
+
+    const [rows, summary, previous, largest, scheduled] = await Promise.all([
+      repo.list(tx, filter, { sort, limit: PAGE_SIZE, offset: (page - 1) * PAGE_SIZE }),
+      repo.summary(tx, filter),
+      repo.summary(tx, { ...filter, ...monthDateRange(previousMonth) }),
+      repo.list(tx, filter, { sort: "amount_desc", limit: 1, offset: 0 }),
+      tomorrow > range.to
+        ? { count: 0, total: "0.00" }
+        : repo.summary(tx, { ...filter, from: tomorrow > range.from ? tomorrow : range.from }),
+    ]);
+    return {
+      month: ym,
+      entries: rows.map((r) => toEntryDto(kind, r, timezone)) as EntryDto[],
+      total: summary.total,
+      page,
+      pageSize: PAGE_SIZE,
+      totalCount: summary.count,
+      totalPages: Math.max(1, Math.ceil(summary.count / PAGE_SIZE)),
+      // Month summary panel — all follow the same filters as the list
+      stats: {
+        previousMonth,
+        previousTotal: previous.total,
+        previousCount: previous.count,
+        largest: largest[0] ? (toEntryDto(kind, largest[0], timezone) as EntryDto) : null,
+        scheduledTotal: scheduled.total,
+        scheduledCount: scheduled.count,
+      },
+    };
+  });
+}
+
+export type EntryList = Awaited<ReturnType<typeof listEntries>>;
+
 // ── /{kind} ──────────────────────────────────────────────────────────────────
 
 export function entryCollectionHandlers(kind: EntryKind) {
@@ -65,28 +122,7 @@ export function entryCollectionHandlers(kind: EntryKind) {
       const { userId } = await requireUser();
       const query = listEntriesQuerySchema.safeParse(Object.fromEntries(req.nextUrl.searchParams));
       if (!query.success) return handleRouteError(query.error);
-      const { month, category, q, sort, page } = query.data;
-
-      const result = await withUserDb(userId, async (tx) => {
-        const timezone = await userTimezone(tx, userId);
-        const ym = month ?? currentYearMonth(timezone); // default: this month, user's clock
-        const filter = { ...monthDateRange(ym), categoryId: category, q };
-        const [rows, summary] = await Promise.all([
-          repo.list(tx, filter, { sort, limit: PAGE_SIZE, offset: (page - 1) * PAGE_SIZE }),
-          repo.summary(tx, filter),
-        ]);
-        return { ym, timezone, rows, summary };
-      });
-
-      return NextResponse.json({
-        month: result.ym,
-        entries: result.rows.map((r) => toEntryDto(kind, r, result.timezone)),
-        total: result.summary.total,
-        page,
-        pageSize: PAGE_SIZE,
-        totalCount: result.summary.count,
-        totalPages: Math.max(1, Math.ceil(result.summary.count / PAGE_SIZE)),
-      });
+      return NextResponse.json(await listEntries(userId, kind, query.data));
     } catch (err) {
       return handleRouteError(err);
     }
