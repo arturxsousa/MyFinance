@@ -61,6 +61,19 @@ export const userRepo = {
       .where(eq(appUser.id, id));
   },
 
+  async updateProfile(
+    tx: UserTx,
+    id: string,
+    data: Pick<NewAppUser, "firstName" | "lastName" | "currency" | "locale" | "timezone">
+  ): Promise<AppUser | undefined> {
+    const rows = await tx
+      .update(appUser)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(appUser.id, id))
+      .returning();
+    return rows[0];
+  },
+
   async updatePassword(tx: UserTx, id: string, passwordHash: string): Promise<void> {
     await tx.update(appUser).set({ passwordHash, updatedAt: new Date() }).where(eq(appUser.id, id));
   },
