@@ -34,12 +34,24 @@ CREATE POLICY app_user_owner ON app_user
   USING (id = current_setting('app.user_id')::uuid)
   WITH CHECK (id = current_setting('app.user_id')::uuid);
 
--- category (system rows have user_id = NULL — readable by all authenticated users)
+-- category (system rows have user_id = NULL — readable by all, writable by none).
+-- Separate policies: a single USING (user_id IS NULL OR own) would also apply
+-- to DELETE and let any user delete system categories.
 ALTER TABLE category ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS category_owner ON category;
-CREATE POLICY category_owner ON category
-  USING (user_id IS NULL OR user_id = current_setting('app.user_id')::uuid)
+DROP POLICY IF EXISTS category_select ON category;
+CREATE POLICY category_select ON category FOR SELECT
+  USING (user_id IS NULL OR user_id = current_setting('app.user_id')::uuid);
+DROP POLICY IF EXISTS category_insert ON category;
+CREATE POLICY category_insert ON category FOR INSERT
   WITH CHECK (user_id = current_setting('app.user_id')::uuid);
+DROP POLICY IF EXISTS category_update ON category;
+CREATE POLICY category_update ON category FOR UPDATE
+  USING (user_id = current_setting('app.user_id')::uuid)
+  WITH CHECK (user_id = current_setting('app.user_id')::uuid);
+DROP POLICY IF EXISTS category_delete ON category;
+CREATE POLICY category_delete ON category FOR DELETE
+  USING (user_id = current_setting('app.user_id')::uuid);
 
 -- recurrence
 ALTER TABLE recurrence ENABLE ROW LEVEL SECURITY;

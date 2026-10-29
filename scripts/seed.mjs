@@ -10,30 +10,35 @@ const sql = neon(process.env.DATABASE_URL_UNPOOLED);
 
 const SYSTEM_CATEGORIES = [
   // Income
-  { kind: "INCOME", name: "Salary", color: "#22c55e" },
-  { kind: "INCOME", name: "Freelance", color: "#16a34a" },
-  { kind: "INCOME", name: "Bonus", color: "#15803d" },
-  { kind: "INCOME", name: "Rental", color: "#166534" },
-  { kind: "INCOME", name: "Other", color: "#86efac" },
+  { kind: "INCOME", name: "Salary", systemKey: "salary", color: "#22c55e" },
+  { kind: "INCOME", name: "Freelance", systemKey: "freelance", color: "#16a34a" },
+  { kind: "INCOME", name: "Bonus", systemKey: "bonus", color: "#15803d" },
+  { kind: "INCOME", name: "Rental", systemKey: "rental", color: "#166534" },
+  { kind: "INCOME", name: "Other", systemKey: "otherIncome", color: "#86efac" },
   // Expense
-  { kind: "EXPENSE", name: "Housing", color: "#f97316" },
-  { kind: "EXPENSE", name: "Food", color: "#ea580c" },
-  { kind: "EXPENSE", name: "Transport", color: "#dc2626" },
-  { kind: "EXPENSE", name: "Health", color: "#e11d48" },
-  { kind: "EXPENSE", name: "Education", color: "#9333ea" },
-  { kind: "EXPENSE", name: "Leisure", color: "#7c3aed" },
-  { kind: "EXPENSE", name: "Bills & Utilities", color: "#4f46e5" },
-  { kind: "EXPENSE", name: "Shopping", color: "#2563eb" },
-  { kind: "EXPENSE", name: "Taxes", color: "#0891b2" },
-  { kind: "EXPENSE", name: "Other", color: "#64748b" },
+  { kind: "EXPENSE", name: "Housing", systemKey: "housing", color: "#f97316" },
+  { kind: "EXPENSE", name: "Food", systemKey: "food", color: "#ea580c" },
+  { kind: "EXPENSE", name: "Transport", systemKey: "transport", color: "#dc2626" },
+  { kind: "EXPENSE", name: "Health", systemKey: "health", color: "#e11d48" },
+  { kind: "EXPENSE", name: "Education", systemKey: "education", color: "#9333ea" },
+  { kind: "EXPENSE", name: "Leisure", systemKey: "leisure", color: "#7c3aed" },
+  { kind: "EXPENSE", name: "Bills & Utilities", systemKey: "bills", color: "#4f46e5" },
+  { kind: "EXPENSE", name: "Shopping", systemKey: "shopping", color: "#2563eb" },
+  { kind: "EXPENSE", name: "Taxes", systemKey: "taxes", color: "#0891b2" },
+  { kind: "EXPENSE", name: "Other", systemKey: "otherExpense", color: "#64748b" },
   // Investment
-  { kind: "INVESTMENT", name: "Fixed Income (CDB/Tesouro)", color: "#0d9488" },
-  { kind: "INVESTMENT", name: "Stocks", color: "#059669" },
-  { kind: "INVESTMENT", name: "FIIs", color: "#0284c7" },
-  { kind: "INVESTMENT", name: "Crypto", color: "#7c3aed" },
-  { kind: "INVESTMENT", name: "Pension (PGBL/VGBL)", color: "#b45309" },
-  { kind: "INVESTMENT", name: "Savings", color: "#15803d" },
-  { kind: "INVESTMENT", name: "Other", color: "#64748b" },
+  {
+    kind: "INVESTMENT",
+    name: "Fixed Income (CDB/Tesouro)",
+    systemKey: "fixedIncome",
+    color: "#0d9488",
+  },
+  { kind: "INVESTMENT", name: "Stocks", systemKey: "stocks", color: "#059669" },
+  { kind: "INVESTMENT", name: "FIIs", systemKey: "reits", color: "#0284c7" },
+  { kind: "INVESTMENT", name: "Crypto", systemKey: "crypto", color: "#7c3aed" },
+  { kind: "INVESTMENT", name: "Pension (PGBL/VGBL)", systemKey: "pension", color: "#b45309" },
+  { kind: "INVESTMENT", name: "Savings", systemKey: "savings", color: "#15803d" },
+  { kind: "INVESTMENT", name: "Other", systemKey: "otherInvestment", color: "#64748b" },
 ];
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -58,8 +63,8 @@ async function seed() {
     }
     const id = genUuid();
     await sql`
-      INSERT INTO category (id, user_id, kind, name, color, is_active, created_at, updated_at)
-      VALUES (${id}, NULL, ${cat.kind}, ${cat.name}, ${cat.color}, true, now(), now())
+      INSERT INTO category (id, user_id, kind, name, system_key, color, is_active, created_at, updated_at)
+      VALUES (${id}, NULL, ${cat.kind}, ${cat.name}, ${cat.systemKey}, ${cat.color}, true, now(), now())
     `;
     console.log(`  ✓ [${cat.kind}] ${cat.name}`);
   }
