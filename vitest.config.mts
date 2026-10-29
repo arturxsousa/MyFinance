@@ -8,6 +8,9 @@ export default defineConfig({
     environment: "jsdom",
     globals: true,
     setupFiles: ["./src/test/setup.ts"],
+    // DB tests hit Neon, which can take several seconds to wake from cold start
+    testTimeout: 20_000,
+    hookTimeout: 30_000,
   },
   resolve: {
     alias: {
