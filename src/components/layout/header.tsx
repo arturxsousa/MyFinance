@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger, SheetTitle } from "@/components/ui/sheet";
 import { MobileNav } from "./mobile-nav";
 
-export function Header() {
+export function Header({ isAdmin }: { isAdmin: Promise<boolean> }) {
   const { theme, setTheme } = useTheme();
 
   return (
@@ -25,7 +25,7 @@ export function Header() {
         </SheetTrigger>
         <SheetContent side="left" className="p-0 w-56">
           <SheetTitle className="sr-only">Navigation</SheetTitle>
-          <MobileNav />
+          <MobileNav isAdmin={isAdmin} />
         </SheetContent>
       </Sheet>
 

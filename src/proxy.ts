@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifyAccessToken, type AccessTokenPayload } from "@/lib/auth";
+import { errorResponse } from "@/lib/api-error";
 import { refreshSession, type RefreshResult } from "@/lib/refresh-session";
 import {
   ACCESS_COOKIE,
@@ -25,6 +26,9 @@ const PUBLIC_PATHS = [
 ];
 
 const AUTH_ONLY_PATHS = ["/login", "/register", "/forgot-password", "/reset-password"];
+
+const isUnder = (pathname: string, base: string) =>
+  pathname === base || pathname.startsWith(base + "/");
 
 interface ResolvedSession {
   payload: AccessTokenPayload | null;
@@ -94,6 +98,19 @@ export async function proxy(req: NextRequest) {
     loginUrl.pathname = "/login";
     loginUrl.searchParams.set("next", pathname);
     return applyCookies(NextResponse.redirect(loginUrl), session);
+  }
+
+  // Coarse gate on the JWT role so no /admin route is reachable by a Common
+  // user, even one someone forgot to guard. Pages and handlers still call
+  // requireAdmin*, which re-checks the DB (a demoted Admin's JWT is stale).
+  if (session.payload.role !== "ADMIN") {
+    if (isUnder(pathname, "/api/admin")) {
+      return applyCookies(errorResponse("FORBIDDEN", "Admin access required", 403), session);
+    }
+    if (isUnder(pathname, "/admin")) {
+      // Rewrite to an unmatched path → Next's not-found page with a 404 status
+      return applyCookies(NextResponse.rewrite(new URL("/404", req.url)), session);
+    }
   }
 
   const res = applyCookies(next(req, session), session);

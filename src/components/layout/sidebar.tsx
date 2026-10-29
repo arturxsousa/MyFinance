@@ -18,6 +18,7 @@ import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
+import { AdminOnly } from "./admin-only";
 
 const navItems = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
@@ -28,16 +29,14 @@ const navItems = [
   { href: "/categories", label: "Categories", icon: Tag },
 ];
 
-const bottomItems = [
-  { href: "/settings", label: "Settings", icon: Settings },
-  { href: "/admin", label: "Admin", icon: ShieldCheck, adminOnly: true },
-];
+const settingsItem = { href: "/settings", label: "Settings", icon: Settings };
+const adminItem = { href: "/admin", label: "Admin", icon: ShieldCheck };
 
 interface SidebarProps {
-  isAdmin?: boolean;
+  isAdmin: Promise<boolean>;
 }
 
-export function Sidebar({ isAdmin = true }: SidebarProps) {
+export function Sidebar({ isAdmin }: SidebarProps) {
   const pathname = usePathname();
   // Start collapsed (matches SSR), then sync from localStorage after hydration
   const [collapsed, setCollapsed] = useState(true);
@@ -56,8 +55,6 @@ export function Sidebar({ isAdmin = true }: SidebarProps) {
       localStorage.setItem("sidebar-collapsed", String(next));
     } catch {}
   };
-
-  const visibleBottom = bottomItems.filter((i) => !i.adminOnly || isAdmin);
 
   return (
     <aside
@@ -92,9 +89,10 @@ export function Sidebar({ isAdmin = true }: SidebarProps) {
       <div className="pb-2 px-2">
         <Separator className="mb-2" />
         <nav className="flex flex-col gap-0.5">
-          {visibleBottom.map((item) => (
-            <NavItem key={item.href} item={item} pathname={pathname} collapsed={collapsed} />
-          ))}
+          <NavItem item={settingsItem} pathname={pathname} collapsed={collapsed} />
+          <AdminOnly isAdmin={isAdmin}>
+            <NavItem item={adminItem} pathname={pathname} collapsed={collapsed} />
+          </AdminOnly>
         </nav>
       </div>
 

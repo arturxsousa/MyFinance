@@ -126,3 +126,40 @@ describe("proxy (silent refresh)", () => {
     expect(refreshSession).not.toHaveBeenCalled();
   });
 });
+
+describe("proxy (admin area)", () => {
+  const as = (role: "USER" | "ADMIN") => signAccessToken({ sub: "user-1", role });
+
+  it.each(["/api/admin", "/api/admin/users", "/api/admin/users/123/role"])(
+    "Common user gets 403 JSON on %s",
+    async (path) => {
+      const res = await proxy(request(path, await as("USER")));
+      expect(res.status).toBe(403);
+      expect((await res.json()).error.code).toBe("FORBIDDEN");
+    }
+  );
+
+  it.each(["/admin", "/admin/users", "/admin/users/123"])(
+    "Common user gets the 404 page on %s",
+    async (path) => {
+      const res = await proxy(request(path, await as("USER")));
+      expect(res.headers.get("x-middleware-rewrite")).toMatch(/\/404$/);
+    }
+  );
+
+  it("does not treat look-alike paths as admin", async () => {
+    const res = await proxy(request("/administrator", await as("USER")));
+    expect(res.headers.get("x-middleware-rewrite")).toBeNull();
+  });
+
+  it.each(["/admin", "/api/admin/users"])("lets an Admin JWT through to %s", async (path) => {
+    const res = await proxy(request(path, await as("ADMIN")));
+    expect(res.status).toBe(200);
+    expect(res.headers.get("x-middleware-rewrite")).toBeNull();
+  });
+
+  it("anonymous users on /admin are sent to /login, not shown a 404", async () => {
+    const res = await proxy(request("/admin"));
+    expect(new URL(res.headers.get("location")!).pathname).toBe("/login");
+  });
+});
