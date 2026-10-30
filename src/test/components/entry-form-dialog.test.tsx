@@ -185,6 +185,41 @@ describe("EntryFormDialog", () => {
     expect(vi.mocked(toast.success).mock.calls[0]![0]).toBe("Saved in November 2026");
   });
 
+  it("offers Delete only when editing", () => {
+    const onDelete = vi.fn();
+    const editEntry = {
+      id: "e1",
+      amount: "10.00",
+      entryDate: "2026-10-05",
+      categoryId: food.id,
+      description: null,
+      notes: null,
+      paymentMethod: "PIX",
+    } as EntryDto;
+    render(
+      <I18nProvider locale="en-US" messages={messages["en-US"]}>
+        <EntryFormDialog
+          kind="EXPENSE"
+          state={{ mode: "edit", entry: editEntry }}
+          categories={[food]}
+          currency="BRL"
+          today="2026-10-29"
+          viewedMonth="2026-10"
+          onClose={vi.fn()}
+          onViewMonth={vi.fn()}
+          onDelete={onDelete}
+        />
+      </I18nProvider>
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Delete" }));
+    expect(onDelete).toHaveBeenCalledWith(editEntry);
+  });
+
+  it("has no Delete button when creating", () => {
+    setup({ mode: "create" });
+    expect(screen.queryByRole("button", { name: "Delete" })).not.toBeInTheDocument();
+  });
+
   it("only shows kind-specific fields for their kind", () => {
     setup({ mode: "create" }, "INCOME");
     expect(screen.queryByText("Payment method")).not.toBeInTheDocument();

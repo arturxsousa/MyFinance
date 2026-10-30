@@ -13,6 +13,8 @@ import { EntriesToolbar } from "./entries-toolbar";
 import { EntriesList } from "./entries-list";
 import { MonthSummary } from "./month-summary";
 import { EntryFormDialog, type EntryFormState } from "./entry-form-dialog";
+import { DeleteEntryDialog } from "./delete-entry-dialog";
+import type { EntryDto } from "@/lib/entry-api";
 
 export interface EntriesViewProps {
   kind: EntryKind;
@@ -33,6 +35,7 @@ export function EntriesView(props: EntriesViewProps) {
   const searchParams = useSearchParams();
   const [pending, startTransition] = useTransition();
   const [form, setForm] = useState<EntryFormState>(null);
+  const [deleting, setDeleting] = useState<EntryDto | null>(null);
   const t = useT();
 
   /** Update the URL; the server re-renders the list. Filters reset to page 1. */
@@ -78,6 +81,7 @@ export function EntriesView(props: EntriesViewProps) {
           {...props}
           setParams={setParams}
           onEdit={(entry) => setForm({ mode: "edit", entry })}
+          onDelete={setDeleting}
         />
       </div>
       <aside className="hidden xl:block">
@@ -103,6 +107,19 @@ export function EntriesView(props: EntriesViewProps) {
         viewedMonth={props.list.month}
         onClose={() => setForm(null)}
         onViewMonth={(month) => setParams({ month, q: null, category: null })}
+        onDelete={(entry) => {
+          // Swap the form for the confirmation rather than stacking dialogs
+          setForm(null);
+          setDeleting(entry);
+        }}
+      />
+
+      <DeleteEntryDialog
+        kind={props.kind}
+        entry={deleting}
+        categories={props.categories}
+        currency={props.currency}
+        onClose={() => setDeleting(null)}
       />
     </div>
   );

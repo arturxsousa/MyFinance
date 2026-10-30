@@ -21,6 +21,7 @@ import type { EntryDto } from "@/lib/entry-api";
 import { cn } from "@/lib/utils";
 import type { EntriesViewProps, SetParams } from "./entries-view";
 import { formatAmount, KIND_ACCENT } from "./format";
+import { EntryRowMenu, type EntryActions } from "./entry-row-menu";
 
 export function EntriesList({
   kind,
@@ -30,7 +31,8 @@ export function EntriesList({
   currency,
   setParams,
   onEdit,
-}: EntriesViewProps & { setParams: SetParams; onEdit: (entry: EntryDto) => void }) {
+  onDelete,
+}: EntriesViewProps & { setParams: SetParams } & EntryActions) {
   const t = useT();
   const locale = useLocale();
   const nameOf = useCategoryName();
@@ -105,7 +107,10 @@ export function EntriesList({
               <TableHead>{t("entries.colDescription")}</TableHead>
               <TableHead className="w-48">{t("entries.colCategory")}</TableHead>
               {extraColumn && <TableHead className="w-40">{extraColumn}</TableHead>}
-              <TableHead className="w-36 pr-4 text-right">{t("entries.colAmount")}</TableHead>
+              <TableHead className="w-36 text-right">{t("entries.colAmount")}</TableHead>
+              <TableHead className="w-12 pr-2">
+                <span className="sr-only">{t("entries.actions")}</span>
+              </TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -138,11 +143,14 @@ export function EntriesList({
                 {extraColumn && <TableCell className="truncate">{extraValue(e)}</TableCell>}
                 <TableCell
                   className={cn(
-                    "pr-4 text-right font-medium tabular-nums",
+                    "text-right font-medium tabular-nums",
                     !e.isScheduled && KIND_ACCENT[kind]
                   )}
                 >
                   {formatAmount(e.amount, currency, locale)}
+                </TableCell>
+                <TableCell className="pr-2">
+                  <EntryRowMenu entry={e} onEdit={onEdit} onDelete={onDelete} />
                 </TableCell>
               </TableRow>
             ))}
