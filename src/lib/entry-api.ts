@@ -18,6 +18,7 @@ import {
   createEntrySchemas,
   listEntriesQuerySchema,
   updateEntrySchemas,
+  duplicateEntrySchema,
   type EntryKind,
   type ListEntriesQuery,
 } from "@/lib/entries";
@@ -239,6 +240,53 @@ export function entryRestoreHandler(kind: EntryKind) {
         return errorResponse("NOT_DELETED", "Entry is not deleted", 409);
       }
       return NextResponse.json({ entry: result });
+    } catch (err) {
+      return handleRouteError(err);
+    }
+  }
+
+  return { POST };
+}
+
+// ── /{kind}/{id}/duplicate ───────────────────────────────────────────────────
+
+export function entryDuplicateHandler(kind: EntryKind) {
+  const repo = entryRepos[kind];
+
+  /**
+   * UC-11: copy an entry to another date. The copy is a new, independent entry:
+   * no recurrence link, no card-purchase fields. Since it is new, BR-06 applies —
+   * a category archived since the original was created can't receive it.
+   */
+  async function POST(req: NextRequest, { params }: IdContext) {
+    try {
+      const { userId } = await requireUser();
+      const id = parseId((await params).id);
+      const body = duplicateEntrySchema.safeParse(await req.json());
+      if (!body.success) return handleRouteError(body.error);
+
+      const result = await withUserDb(userId, async (tx) => {
+        const source = requireOwned(await repo.findById(tx, id), userId);
+        const check = await checkEntryCategory(tx, source.categoryId, kind);
+        if (!check.ok) return check;
+
+        const copy: Record<string, unknown> = {
+          userId,
+          categoryId: source.categoryId,
+          amount: source.amount,
+          entryDate: body.data.entryDate,
+          description: source.description,
+          notes: source.notes,
+        };
+        if ("paymentMethod" in source) copy.paymentMethod = source.paymentMethod;
+        if ("institution" in source) copy.institution = source.institution;
+
+        const row = await repo.create(tx, copy as never);
+        return { ok: true as const, dto: toEntryDto(kind, row, await userTimezone(tx, userId)) };
+      });
+
+      if (!result.ok) return categoryError(result.error);
+      return NextResponse.json({ entry: result.dto }, { status: 201 });
     } catch (err) {
       return handleRouteError(err);
     }

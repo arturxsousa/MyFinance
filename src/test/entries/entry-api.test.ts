@@ -15,6 +15,8 @@ vi.mock("next/headers", () => ({
 import * as incomes from "@/app/api/incomes/route";
 import * as incomeItem from "@/app/api/incomes/[id]/route";
 import * as incomeRestore from "@/app/api/incomes/[id]/restore/route";
+import * as incomeDuplicate from "@/app/api/incomes/[id]/duplicate/route";
+import * as expenseDuplicate from "@/app/api/expenses/[id]/duplicate/route";
 import * as expenses from "@/app/api/expenses/route";
 import * as expenseItem from "@/app/api/expenses/[id]/route";
 import * as investments from "@/app/api/investments/route";
@@ -427,5 +429,85 @@ describe("/{kind}/{id}", () => {
     const e = await own();
     await del(e.id);
     expect((await put(e.id, { amount: "1" })).status).toBe(404);
+  });
+});
+
+// ── Duplicate (UC-11) ────────────────────────────────────────────────────────
+
+describe("POST /{kind}/{id}/duplicate", () => {
+  const dup = (id: string, body: unknown) =>
+    call(incomeDuplicate.POST(json("POST", `/api/incomes/${id}/duplicate`, body), ctx(id)));
+
+  it("copies the entry to the chosen date as a new, independent entry", async () => {
+    const src = (await createIncome({ amount: "321.09", description: "Freela", notes: "Client X" }))
+      .body.entry;
+    const { status, body } = await dup(src.id, { entryDate: "2031-04-15" });
+    expect(status).toBe(201);
+    expect(body.entry).toMatchObject({
+      categoryId: cat.salary,
+      amount: "321.09",
+      entryDate: "2031-04-15",
+      description: "Freela",
+      notes: "Client X",
+      recurrenceId: null,
+    });
+    expect(body.entry.id).not.toBe(src.id);
+    // The original is untouched
+    const [orig] =
+      await sql`SELECT entry_date::text AS entry_date FROM income WHERE id = ${src.id}`;
+    expect(orig!.entry_date).toBe(`${MONTH}-10`);
+  });
+
+  it("copies the payment method of an expense", async () => {
+    const src = (
+      await call(
+        expenses.POST(
+          json("POST", "/api/expenses", {
+            categoryId: cat.food,
+            amount: "15",
+            entryDate: `${MONTH}-02`,
+            paymentMethod: "CASH",
+          })
+        )
+      )
+    ).body.entry;
+    const { body } = await call(
+      expenseDuplicate.POST(
+        json("POST", `/api/expenses/${src.id}/duplicate`, { entryDate: `${MONTH}-20` }),
+        ctx(src.id)
+      )
+    );
+    expect(body.entry).toMatchObject({ paymentMethod: "CASH", amount: "15.00" });
+  });
+
+  it("refuses when the category was archived since (BR-06: no new entries)", async () => {
+    const [mine] = await sql`
+      INSERT INTO category (user_id, kind, name) VALUES (${USER_A}, 'INCOME', ${`Dup ${crypto.randomUUID()}`})
+      RETURNING id
+    `;
+    const src = (await createIncome({ amount: "5", categoryId: mine!.id })).body.entry;
+    await sql`UPDATE category SET is_active = false WHERE id = ${mine!.id}`;
+    const { status, body } = await dup(src.id, { entryDate: `${MONTH}-20` });
+    expect(status).toBe(422);
+    expect(body.error.fields.categoryId).toEqual(["validation.categoryArchived"]);
+  });
+
+  it("only takes a valid date", async () => {
+    const src = (await createIncome({ amount: "5" })).body.entry;
+    expect((await dup(src.id, { entryDate: "2031-02-30" })).status).toBe(422);
+    expect((await dup(src.id, { entryDate: `${MONTH}-20`, amount: "999" })).status).toBe(422);
+  });
+
+  it("another user's entry, a deleted one, or a bad id is a 404", async () => {
+    await as(USER_B);
+    const theirs = (await createIncome({ amount: "1", categoryId: cat.bOwn })).body.entry;
+    await as(USER_A);
+    expect((await dup(theirs.id, { entryDate: `${MONTH}-20` })).status).toBe(404);
+
+    const mine = (await createIncome({ amount: "1" })).body.entry;
+    await call(incomeItem.DELETE(json("DELETE", `/api/incomes/${mine.id}`), ctx(mine.id)));
+    expect((await dup(mine.id, { entryDate: `${MONTH}-20` })).status).toBe(404);
+
+    expect((await dup("nope", { entryDate: `${MONTH}-20` })).status).toBe(404);
   });
 });

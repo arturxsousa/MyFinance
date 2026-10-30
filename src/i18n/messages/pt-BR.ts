@@ -216,6 +216,15 @@ const ptBR: Messages = {
     undo: "Desfazer",
     restored: "Lançamento restaurado",
     restoreFailed: "Não foi possível restaurar o lançamento",
+    duplicate: "Duplicar",
+    duplicateTitle: "Duplicar lançamento",
+    duplicateBody:
+      "Será criada uma cópia com a mesma categoria, valor e descrição na data que você escolher.",
+    duplicateDate: "Nova data",
+    duplicating: "Duplicando…",
+    duplicated: "Cópia adicionada em {date}",
+    duplicateArchived:
+      "A categoria deste lançamento está arquivada e não pode receber novos lançamentos. Reative-a em Categorias ou crie o lançamento com outra categoria.",
   },
   categories: {
     title: "Categorias",

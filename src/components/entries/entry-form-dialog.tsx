@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { CalendarClock, Trash2 } from "lucide-react";
+import { CalendarClock, Copy, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -46,6 +46,8 @@ interface Props {
   onViewMonth: (month: string) => void;
   /** Editing only: hand the entry over to the delete confirmation */
   onDelete?: (entry: EntryDto) => void;
+  /** Editing only: hand the entry over to the duplicate dialog */
+  onDuplicate?: (entry: EntryDto) => void;
 }
 
 export function EntryFormDialog({ state, onClose, ...rest }: Props) {
@@ -85,6 +87,7 @@ function EntryForm({
   onClose,
   onViewMonth,
   onDelete,
+  onDuplicate,
 }: Props & { state: NonNullable<EntryFormState> }) {
   const t = useT();
   const locale = useLocale();
@@ -293,6 +296,12 @@ function EntryForm({
             >
               <Trash2 />
               {t("entries.delete")}
+            </Button>
+          )}
+          {editing && onDuplicate && (
+            <Button type="button" variant="ghost" onClick={() => onDuplicate(editing)}>
+              <Copy />
+              {t("entries.duplicate")}
             </Button>
           )}
           <Button type="button" variant="outline" onClick={onClose}>

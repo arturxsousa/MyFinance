@@ -213,6 +213,15 @@ const enUS = {
     undo: "Undo",
     restored: "Entry restored",
     restoreFailed: "Couldn't restore the entry",
+    duplicate: "Duplicate",
+    duplicateTitle: "Duplicate entry",
+    duplicateBody:
+      "A copy with the same category, amount and description will be created on the date you choose.",
+    duplicateDate: "New date",
+    duplicating: "Duplicating…",
+    duplicated: "Copy added on {date}",
+    duplicateArchived:
+      "This entry's category is archived and can't receive new entries. Reactivate it in Categories, or add the entry with another category.",
   },
   categories: {
     title: "Categories",

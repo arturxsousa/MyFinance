@@ -32,6 +32,7 @@ export function EntriesList({
   setParams,
   onEdit,
   onDelete,
+  onDuplicate,
 }: EntriesViewProps & { setParams: SetParams } & EntryActions) {
   const t = useT();
   const locale = useLocale();
@@ -150,7 +151,12 @@ export function EntriesList({
                   {formatAmount(e.amount, currency, locale)}
                 </TableCell>
                 <TableCell className="pr-2">
-                  <EntryRowMenu entry={e} onEdit={onEdit} onDelete={onDelete} />
+                  <EntryRowMenu
+                    entry={e}
+                    onEdit={onEdit}
+                    onDelete={onDelete}
+                    onDuplicate={onDuplicate}
+                  />
                 </TableCell>
               </TableRow>
             ))}

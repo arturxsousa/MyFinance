@@ -1,6 +1,6 @@
 "use client";
 
-import { MoreHorizontal, Pencil, Trash2 } from "lucide-react";
+import { Copy, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -15,10 +15,16 @@ import type { EntryDto } from "@/lib/entry-api";
 export interface EntryActions {
   onEdit: (entry: EntryDto) => void;
   onDelete: (entry: EntryDto) => void;
+  onDuplicate: (entry: EntryDto) => void;
 }
 
 /** The ⋯ menu at the end of a row. Clicks don't bubble to the row (which opens edit). */
-export function EntryRowMenu({ entry, onEdit, onDelete }: EntryActions & { entry: EntryDto }) {
+export function EntryRowMenu({
+  entry,
+  onEdit,
+  onDelete,
+  onDuplicate,
+}: EntryActions & { entry: EntryDto }) {
   const t = useT();
   return (
     <div onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
@@ -38,6 +44,10 @@ export function EntryRowMenu({ entry, onEdit, onDelete }: EntryActions & { entry
           <DropdownMenuItem onClick={() => onEdit(entry)}>
             <Pencil />
             {t("entries.edit")}
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={() => onDuplicate(entry)}>
+            <Copy />
+            {t("entries.duplicate")}
           </DropdownMenuItem>
           <DropdownMenuSeparator />
           <DropdownMenuItem variant="destructive" onClick={() => onDelete(entry)}>

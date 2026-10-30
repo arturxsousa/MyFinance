@@ -14,6 +14,7 @@ import { EntriesList } from "./entries-list";
 import { MonthSummary } from "./month-summary";
 import { EntryFormDialog, type EntryFormState } from "./entry-form-dialog";
 import { DeleteEntryDialog } from "./delete-entry-dialog";
+import { DuplicateEntryDialog } from "./duplicate-entry-dialog";
 import type { EntryDto } from "@/lib/entry-api";
 
 export interface EntriesViewProps {
@@ -36,6 +37,7 @@ export function EntriesView(props: EntriesViewProps) {
   const [pending, startTransition] = useTransition();
   const [form, setForm] = useState<EntryFormState>(null);
   const [deleting, setDeleting] = useState<EntryDto | null>(null);
+  const [duplicating, setDuplicating] = useState<EntryDto | null>(null);
   const t = useT();
 
   /** Update the URL; the server re-renders the list. Filters reset to page 1. */
@@ -82,6 +84,7 @@ export function EntriesView(props: EntriesViewProps) {
           setParams={setParams}
           onEdit={(entry) => setForm({ mode: "edit", entry })}
           onDelete={setDeleting}
+          onDuplicate={setDuplicating}
         />
       </div>
       <aside className="hidden xl:block">
@@ -112,6 +115,10 @@ export function EntriesView(props: EntriesViewProps) {
           setForm(null);
           setDeleting(entry);
         }}
+        onDuplicate={(entry) => {
+          setForm(null);
+          setDuplicating(entry);
+        }}
       />
 
       <DeleteEntryDialog
@@ -120,6 +127,17 @@ export function EntriesView(props: EntriesViewProps) {
         categories={props.categories}
         currency={props.currency}
         onClose={() => setDeleting(null)}
+      />
+
+      <DuplicateEntryDialog
+        kind={props.kind}
+        entry={duplicating}
+        categories={props.categories}
+        currency={props.currency}
+        today={props.today}
+        viewedMonth={props.list.month}
+        onClose={() => setDuplicating(null)}
+        onViewMonth={(month) => setParams({ month, q: null, category: null })}
       />
     </div>
   );
