@@ -26,7 +26,8 @@ export function EntriesToolbar({
   categories,
   currentMonth,
   setParams,
-}: EntriesViewProps & { setParams: SetParams }) {
+  actions,
+}: EntriesViewProps & { setParams: SetParams; actions?: React.ReactNode }) {
   const t = useT();
   const locale = useLocale();
   const nameOf = useCategoryName();
@@ -43,36 +44,40 @@ export function EntriesToolbar({
   };
 
   return (
-    <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
-      {/* Month picker */}
-      <div className="flex items-center gap-1">
-        <Button
-          variant="outline"
-          size="icon"
-          onClick={() => setParams({ month: shiftMonth(month, -1) })}
-          aria-label={t("entries.previousMonth")}
-        >
-          <ChevronLeft />
-        </Button>
-        <span className="min-w-40 text-center text-sm font-medium tabular-nums">
-          {formatMonthLabel(month, locale)}
-        </span>
-        <Button
-          variant="outline"
-          size="icon"
-          onClick={() => setParams({ month: shiftMonth(month, 1) })}
-          aria-label={t("entries.nextMonth")}
-        >
-          <ChevronRight />
-        </Button>
-        {month !== currentMonth && (
-          <Button variant="ghost" size="sm" onClick={() => setParams({ month: null })}>
-            {t("entries.thisMonth")}
+    <div className="space-y-3">
+      {/* Row 1: month picker, with page actions (e.g. "+ New") on the right */}
+      <div className="flex items-center gap-3">
+        <div className="flex items-center gap-1">
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={() => setParams({ month: shiftMonth(month, -1) })}
+            aria-label={t("entries.previousMonth")}
+          >
+            <ChevronLeft />
           </Button>
-        )}
+          <span className="min-w-40 text-center text-sm font-medium tabular-nums">
+            {formatMonthLabel(month, locale)}
+          </span>
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={() => setParams({ month: shiftMonth(month, 1) })}
+            aria-label={t("entries.nextMonth")}
+          >
+            <ChevronRight />
+          </Button>
+          {month !== currentMonth && (
+            <Button variant="ghost" size="sm" onClick={() => setParams({ month: null })}>
+              {t("entries.thisMonth")}
+            </Button>
+          )}
+        </div>
+        {actions && <div className="ml-auto shrink-0">{actions}</div>}
       </div>
 
-      <div className="grid flex-1 gap-2 sm:grid-cols-[1fr_auto_auto] lg:justify-end">
+      {/* Row 2: search takes the remaining width */}
+      <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto_auto]">
         <SearchBox value={query.q ?? ""} onSearch={(q) => setParams({ q })} />
 
         <Select

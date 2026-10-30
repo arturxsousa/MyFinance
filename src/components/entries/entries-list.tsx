@@ -29,7 +29,8 @@ export function EntriesList({
   categories,
   currency,
   setParams,
-}: EntriesViewProps & { setParams: SetParams }) {
+  onEdit,
+}: EntriesViewProps & { setParams: SetParams; onEdit: (entry: EntryDto) => void }) {
   const t = useT();
   const locale = useLocale();
   const nameOf = useCategoryName();
@@ -109,7 +110,13 @@ export function EntriesList({
           </TableHeader>
           <TableBody>
             {list.entries.map((e) => (
-              <TableRow key={e.id} className={cn(e.isScheduled && "text-muted-foreground")}>
+              <TableRow
+                key={e.id}
+                className={cn("cursor-pointer", e.isScheduled && "text-muted-foreground")}
+                onClick={() => onEdit(e)}
+                onKeyDown={(ev) => ev.key === "Enter" && onEdit(e)}
+                tabIndex={0}
+              >
                 <TableCell className="pl-4 tabular-nums">
                   {formatDate(e.entryDate, locale)}
                 </TableCell>
@@ -143,12 +150,16 @@ export function EntriesList({
         </Table>
 
         {/* Mobile: cards */}
-        <ul className="divide-y md:hidden">
+        <ul className="divide-y md:hidden pb-16 sm:pb-0">
           {list.entries.map((e) => (
             <li
               key={e.id}
+              role="button"
+              tabIndex={0}
+              onClick={() => onEdit(e)}
+              onKeyDown={(ev) => ev.key === "Enter" && onEdit(e)}
               className={cn(
-                "flex items-start gap-3 px-4 py-3",
+                "flex cursor-pointer items-start gap-3 px-4 py-3 active:bg-muted/50",
                 e.isScheduled && "text-muted-foreground"
               )}
             >

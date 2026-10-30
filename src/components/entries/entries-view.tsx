@@ -1,6 +1,9 @@
 "use client";
 
-import { useTransition } from "react";
+import { useState, useTransition } from "react";
+import { Plus } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { useT } from "@/i18n/client";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import type { CategoryDto } from "@/lib/categories";
 import type { EntryKind, ListEntriesQuery } from "@/lib/entries";
@@ -9,6 +12,7 @@ import { cn } from "@/lib/utils";
 import { EntriesToolbar } from "./entries-toolbar";
 import { EntriesList } from "./entries-list";
 import { MonthSummary } from "./month-summary";
+import { EntryFormDialog, type EntryFormState } from "./entry-form-dialog";
 
 export interface EntriesViewProps {
   kind: EntryKind;
@@ -17,6 +21,8 @@ export interface EntriesViewProps {
   categories: CategoryDto[];
   currency: string;
   currentMonth: string;
+  /** Today in the user's timezone, "YYYY-MM-DD" */
+  today: string;
 }
 
 export type SetParams = (changes: Record<string, string | number | null>) => void;
@@ -26,6 +32,8 @@ export function EntriesView(props: EntriesViewProps) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const [pending, startTransition] = useTransition();
+  const [form, setForm] = useState<EntryFormState>(null);
+  const t = useT();
 
   /** Update the URL; the server re-renders the list. Filters reset to page 1. */
   const setParams: SetParams = (changes) => {
@@ -50,15 +58,52 @@ export function EntriesView(props: EntriesViewProps) {
       aria-busy={pending}
     >
       <div className="min-w-0 space-y-4">
-        <EntriesToolbar {...props} setParams={setParams} />
+        <EntriesToolbar
+          {...props}
+          setParams={setParams}
+          actions={
+            <Button
+              onClick={() => setForm({ mode: "create" })}
+              className="hidden bg-emerald-600 text-white shadow-sm shadow-emerald-600/20 hover:bg-emerald-700 sm:inline-flex"
+            >
+              <Plus />
+              {t(`entries.new${props.kind}`)}
+            </Button>
+          }
+        />
         <div className="xl:hidden">
           <MonthSummary {...props} />
         </div>
-        <EntriesList {...props} setParams={setParams} />
+        <EntriesList
+          {...props}
+          setParams={setParams}
+          onEdit={(entry) => setForm({ mode: "edit", entry })}
+        />
       </div>
       <aside className="hidden xl:block">
         <MonthSummary {...props} />
       </aside>
+
+      {/* Mobile: floating add button, clear of the bottom edge */}
+      <Button
+        onClick={() => setForm({ mode: "create" })}
+        size="icon-lg"
+        className="fixed right-5 bottom-5 z-40 size-14 rounded-full bg-emerald-600 text-white shadow-lg shadow-emerald-600/30 hover:bg-emerald-700 sm:hidden"
+        aria-label={t(`entries.new${props.kind}`)}
+      >
+        <Plus className="size-6" />
+      </Button>
+
+      <EntryFormDialog
+        kind={props.kind}
+        state={form}
+        categories={props.categories}
+        currency={props.currency}
+        today={props.today}
+        viewedMonth={props.list.month}
+        onClose={() => setForm(null)}
+        onViewMonth={(month) => setParams({ month, q: null, category: null })}
+      />
     </div>
   );
 }

@@ -6,7 +6,7 @@ import { requireUserPage } from "@/lib/guards";
 import { toCategoryDto } from "@/lib/categories";
 import { listEntriesQuerySchema, type EntryKind } from "@/lib/entries";
 import { listEntries } from "@/lib/entry-api";
-import { currentYearMonth } from "@/lib/date";
+import { currentYearMonth, todayInTimeZone } from "@/lib/date";
 import { getT } from "@/i18n/server";
 import { EntriesView } from "./entries-view";
 
@@ -66,6 +66,7 @@ async function EntriesContent({
       categories={categories}
       currency={user?.currency ?? "BRL"}
       currentMonth={currentYearMonth(user?.timezone)}
+      today={todayInTimeZone(user?.timezone)}
     />
   );
 }
