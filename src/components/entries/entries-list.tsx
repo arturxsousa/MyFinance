@@ -1,6 +1,6 @@
 "use client";
 
-import { CalendarClock, Inbox } from "lucide-react";
+import { CalendarClock, PiggyBank, Plus, SearchX, TrendingDown, TrendingUp } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -23,6 +23,8 @@ import type { EntriesViewProps, SetParams } from "./entries-view";
 import { formatAmount, KIND_ACCENT } from "./format";
 import { EntryRowMenu, type EntryActions } from "./entry-row-menu";
 
+const EMPTY_ICON = { INCOME: TrendingUp, EXPENSE: TrendingDown, INVESTMENT: PiggyBank };
+
 export function EntriesList({
   kind,
   list,
@@ -33,7 +35,8 @@ export function EntriesList({
   onEdit,
   onDelete,
   onDuplicate,
-}: EntriesViewProps & { setParams: SetParams } & EntryActions) {
+  onCreate,
+}: EntriesViewProps & { setParams: SetParams; onCreate: () => void } & EntryActions) {
   const t = useT();
   const locale = useLocale();
   const nameOf = useCategoryName();
@@ -58,23 +61,35 @@ export function EntriesList({
     return (
       <Card className="shadow-lg border-border/60">
         <CardContent>
-          <EmptyState
-            icon={Inbox}
-            title={
-              filtered
-                ? t("entries.emptyFiltered")
-                : t("entries.emptyMonth", { month: formatMonthLabel(list.month, locale) })
-            }
-            action={
-              filtered
-                ? {
-                    label: t("entries.clearFilters"),
-                    onClick: () => setParams({ q: null, category: null }),
-                  }
-                : undefined
-            }
-            className="py-12"
-          />
+          {filtered ? (
+            <EmptyState
+              icon={SearchX}
+              title={t("entries.emptyFiltered")}
+              description={t("entries.emptyFilteredBody")}
+              action={{
+                label: t("entries.clearFilters"),
+                onClick: () => setParams({ q: null, category: null }),
+                variant: "outline",
+              }}
+              className="py-12"
+            />
+          ) : (
+            <EmptyState
+              icon={EMPTY_ICON[kind]}
+              title={t(`entries.emptyTitle${kind}`, {
+                month: formatMonthLabel(list.month, locale),
+              })}
+              description={t(`entries.emptyBody${kind}`)}
+              action={{
+                label: t(`entries.new${kind}`),
+                onClick: onCreate,
+                icon: Plus,
+                className:
+                  "bg-emerald-600 text-white shadow-sm shadow-emerald-600/20 hover:bg-emerald-700",
+              }}
+              className="py-12"
+            />
+          )}
         </CardContent>
       </Card>
     );

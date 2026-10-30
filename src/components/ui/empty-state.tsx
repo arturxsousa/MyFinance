@@ -9,6 +9,9 @@ interface EmptyStateProps {
   action?: {
     label: string;
     onClick: () => void;
+    icon?: React.ElementType;
+    className?: string;
+    variant?: React.ComponentProps<typeof Button>["variant"];
   };
   className?: string;
 }
@@ -26,7 +29,13 @@ export function EmptyState({ icon: Icon, title, description, action, className }
       <h3 className="text-base font-semibold">{title}</h3>
       {description && <p className="mt-1 text-sm text-muted-foreground max-w-sm">{description}</p>}
       {action && (
-        <Button onClick={action.onClick} className="mt-4" size="sm">
+        <Button
+          onClick={action.onClick}
+          variant={action.variant}
+          className={cn("mt-4", action.className)}
+          size="sm"
+        >
+          {action.icon && <action.icon />}
           {action.label}
         </Button>
       )}

@@ -85,6 +85,7 @@ export function EntriesView(props: EntriesViewProps) {
           onEdit={(entry) => setForm({ mode: "edit", entry })}
           onDelete={setDeleting}
           onDuplicate={setDuplicating}
+          onCreate={() => setForm({ mode: "create" })}
         />
       </div>
       <aside className="hidden xl:block">
