@@ -1,10 +1,14 @@
 import { Resend } from "resend";
 
-const resend = new Resend(process.env.RESEND_API_KEY);
 const FROM = process.env.EMAIL_FROM ?? "My Finance <noreply@myfinance.app>";
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
 
+// Created on first send, not at import: `new Resend()` throws without a key,
+// and the build imports every route — a missing key must not break deploys.
+let resend: Resend | undefined;
+
 async function send(to: string, subject: string, html: string) {
+  resend ??= new Resend(process.env.RESEND_API_KEY);
   return resend.emails.send({ from: FROM, to, subject, html });
 }
 
