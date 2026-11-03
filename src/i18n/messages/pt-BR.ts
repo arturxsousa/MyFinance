@@ -243,6 +243,13 @@ const ptBR: Messages = {
     projectedTotal: "Previsto",
     onlyProjections: "Nenhum lançamento real neste mês ainda — só o que está previsto.",
     recurring: "Recorrente",
+    applyTo: "Aplicar a alteração em",
+    applyThis: "Só este lançamento",
+    applyThisHint: "Os próximos meses continuam como estão.",
+    applyFuture: "Este e os próximos",
+    applyFutureHint:
+      "Muda também a recorrência e os lançamentos dela depois deste. Data e observações valem só para este.",
+    updatedFuture: "Lançamento e próximos atualizados",
     recurringCreated: "Lançamento recorrente adicionado — próximo em {date}",
     duplicateArchived:
       "A categoria deste lançamento está arquivada e não pode receber novos lançamentos. Reative-a em Categorias ou crie o lançamento com outra categoria.",

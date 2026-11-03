@@ -252,4 +252,48 @@ describe("EntryFormDialog", () => {
     expect(screen.queryByText("Payment method")).not.toBeInTheDocument();
     expect(screen.queryByText("Institution")).not.toBeInTheDocument();
   });
+  describe("editing an entry created by a recurrence (UC-09)", () => {
+    const recurringEntry = {
+      id: "e1",
+      amount: "2200.00",
+      entryDate: "2026-10-05",
+      categoryId: food.id,
+      description: "Rent",
+      notes: null,
+      paymentMethod: "TRANSFER",
+      recurrenceId: "r1",
+    } as EntryDto;
+
+    it("asks only for recurring entries, defaulting to only this one", () => {
+      setup({ mode: "edit", entry: recurringEntry });
+      expect(screen.getByText("Apply this change to")).toBeInTheDocument();
+      expect(screen.getByRole("radio", { name: /Only this entry/ })).toBeChecked();
+      expect(screen.getByRole("radio", { name: /This and future entries/ })).not.toBeChecked();
+    });
+
+    it("is not shown for a regular entry", () => {
+      setup({ mode: "edit", entry: { ...recurringEntry, recurrenceId: null } });
+      expect(screen.queryByText("Apply this change to")).not.toBeInTheDocument();
+    });
+
+    it("only this one: plain PUT", async () => {
+      fetchMock.mockResolvedValue(ok({}));
+      const { onClose } = setup({ mode: "edit", entry: recurringEntry });
+      fireEvent.click(screen.getByRole("button", { name: "Save" }));
+      await waitFor(() => expect(onClose).toHaveBeenCalled());
+      expect(fetchMock.mock.calls[0]![0]).toBe("/api/expenses/e1");
+      expect(toast.success).toHaveBeenCalledWith("Entry updated");
+    });
+
+    it("this and future: sends scope=future", async () => {
+      fetchMock.mockResolvedValue(ok({}));
+      const { onClose } = setup({ mode: "edit", entry: recurringEntry });
+      fireEvent.click(screen.getByRole("radio", { name: /This and future entries/ }));
+      fireEvent.click(screen.getByRole("button", { name: "Save" }));
+      await waitFor(() => expect(onClose).toHaveBeenCalled());
+      expect(fetchMock.mock.calls[0]![0]).toBe("/api/expenses/e1?scope=future");
+      expect(fetchMock.mock.calls[0]![1].method).toBe("PUT");
+      expect(toast.success).toHaveBeenCalledWith("Entry and future ones updated");
+    });
+  });
 });

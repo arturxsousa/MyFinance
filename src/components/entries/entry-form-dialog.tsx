@@ -32,6 +32,7 @@ import {
   MAX_RECURRING_DAY,
   PAYMENT_METHODS,
   slugFromKind,
+  type EditScope,
   type EntryKind,
   type PaymentMethod,
 } from "@/lib/entries";
@@ -116,6 +117,9 @@ function EntryForm({
   });
   const [errors, setErrors] = useState<FieldErrors>({});
   const [saving, setSaving] = useState(false);
+  // UC-09: an entry created by a recurrence asks whether the change carries on
+  const [scope, setScope] = useState<EditScope>("this");
+  const recurring = !!editing?.recurrenceId;
 
   const set = <K extends keyof Values>(key: K, value: Values[K]) => {
     setValues((v) => ({ ...v, [key]: value }));
@@ -146,7 +150,10 @@ function EntryForm({
 
     const base = `/api/${slugFromKind(kind)}`;
     try {
-      const res = await fetch(editing ? `${base}/${editing.id}` : base, {
+      const url = editing
+        ? `${base}/${editing.id}${recurring && scope === "future" ? "?scope=future" : ""}`
+        : base;
+      const res = await fetch(url, {
         method: editing ? "PUT" : "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
@@ -169,6 +176,8 @@ function EntryForm({
               date: formatDate(nextMonthlyDate(values.entryDate), locale),
             })
           );
+        } else if (editing && recurring && scope === "future") {
+          toast.success(t("entries.updatedFuture"));
         } else {
           toast.success(t(editing ? "entries.updated" : "entries.created"));
         }
@@ -280,6 +289,35 @@ function EntryForm({
             )}
             {errors.repeat && <p className="text-sm text-destructive">{errors.repeat}</p>}
           </div>
+        )}
+
+        {recurring && (
+          <fieldset className="space-y-2 rounded-lg border bg-muted/30 p-3">
+            <legend className="flex items-center gap-1.5 text-sm font-medium">
+              <Repeat className="size-3.5" />
+              {t("entries.applyTo")}
+            </legend>
+            {(["this", "future"] as const).map((option) => (
+              <label key={option} className="flex cursor-pointer items-start gap-2.5">
+                <input
+                  type="radio"
+                  name="entry-scope"
+                  value={option}
+                  checked={scope === option}
+                  onChange={() => setScope(option)}
+                  className="mt-0.5 size-4 accent-emerald-600"
+                />
+                <span className="space-y-0.5">
+                  <span className="block text-sm">
+                    {t(option === "this" ? "entries.applyThis" : "entries.applyFuture")}
+                  </span>
+                  <span className="block text-xs text-muted-foreground">
+                    {t(option === "this" ? "entries.applyThisHint" : "entries.applyFutureHint")}
+                  </span>
+                </span>
+              </label>
+            ))}
+          </fieldset>
         )}
 
         <Field id="entry-category" label={t("entries.fieldCategory")} error={errors.categoryId}>

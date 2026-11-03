@@ -21,6 +21,8 @@ import {
   listEntriesQuerySchema,
   updateEntrySchemas,
   duplicateEntrySchema,
+  editScopeSchema,
+  RECURRING_FIELDS,
   type EntryKind,
   type ListEntriesQuery,
   type PaymentMethod,
@@ -281,11 +283,16 @@ export function entryItemHandlers(kind: EntryKind) {
     try {
       const { userId } = await requireUser();
       const id = parseId((await params).id);
+      const scope = editScopeSchema.safeParse(req.nextUrl.searchParams.get("scope") ?? undefined);
+      if (!scope.success) return handleRouteError(scope.error);
       const body = updateEntrySchemas[kind].safeParse(await req.json());
       if (!body.success) return handleRouteError(body.error);
 
       const result = await withUserDb(userId, async (tx) => {
         const current = requireOwned(await repo.findById(tx, id), userId);
+        if (scope.data === "future" && !current.recurrenceId) {
+          throw new ApiError("NOT_RECURRING", "This entry isn't part of a recurrence", 409);
+        }
         if (body.data.categoryId && body.data.categoryId !== current.categoryId) {
           const check = await checkEntryCategory(
             tx,
@@ -297,11 +304,37 @@ export function entryItemHandlers(kind: EntryKind) {
         }
         const row = await repo.update(tx, id, body.data as never);
         if (!row) throw new ApiError("NOT_FOUND", "Resource not found", 404);
-        return { ok: true as const, dto: toEntryDto(kind, row, await userTimezone(tx, userId)) };
+
+        // UC-09 "this and future": the recurrence's template and the entries it
+        // already created after this one take the same values. The date and
+        // notes belong to this entry only.
+        let updatedFollowing = 0;
+        if (scope.data === "future" && current.recurrenceId) {
+          const carried = Object.fromEntries(
+            RECURRING_FIELDS.filter((f) => f in body.data).map((f) => [
+              f,
+              (body.data as Record<string, unknown>)[f],
+            ])
+          );
+          if (Object.keys(carried).length > 0) {
+            await recurrenceRepo.update(tx, current.recurrenceId, carried);
+            updatedFollowing = await repo.updateFollowing(
+              tx,
+              current.recurrenceId,
+              current.entryDate,
+              carried as never
+            );
+          }
+        }
+        return {
+          ok: true as const,
+          dto: toEntryDto(kind, row, await userTimezone(tx, userId)),
+          updatedFollowing,
+        };
       });
 
       if (!result.ok) return categoryError(result.error);
-      return NextResponse.json({ entry: result.dto });
+      return NextResponse.json({ entry: result.dto, updatedFollowing: result.updatedFollowing });
     } catch (err) {
       return handleRouteError(err);
     }

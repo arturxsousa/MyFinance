@@ -36,7 +36,17 @@ export const recurrenceRepo = {
     tx: UserTx,
     id: string,
     data: Partial<
-      Pick<NewRecurrence, "amount" | "description" | "endDate" | "isActive" | "lastGeneratedOn">
+      Pick<
+        NewRecurrence,
+        | "amount"
+        | "categoryId"
+        | "description"
+        | "paymentMethod"
+        | "institution"
+        | "endDate"
+        | "isActive"
+        | "lastGeneratedOn"
+      >
     >
   ): Promise<RecurrenceRow | undefined> {
     const rows = await tx

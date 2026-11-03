@@ -239,6 +239,13 @@ const enUS = {
     projectedTotal: "Projected",
     onlyProjections: "No real entries yet this month — only what's projected.",
     recurring: "Recurring",
+    applyTo: "Apply this change to",
+    applyThis: "Only this entry",
+    applyThisHint: "The following months stay as they are.",
+    applyFuture: "This and future entries",
+    applyFutureHint:
+      "Also changes the recurrence and its entries after this one. The date and notes apply to this entry only.",
+    updatedFuture: "Entry and future ones updated",
     recurringCreated: "Recurring entry added — next on {date}",
     duplicateArchived:
       "This entry's category is archived and can't receive new entries. Reactivate it in Categories, or add the entry with another category.",

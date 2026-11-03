@@ -3,6 +3,7 @@ import {
   asc,
   desc,
   eq,
+  gt,
   gte,
   ilike,
   inArray,
@@ -120,6 +121,24 @@ function makeEntryRepo<TSelect extends { id: string; userId: string }, TInsert>(
         .where(and(eq(table.id, id), notDeleted))
         .returning();
       return rows[0];
+    },
+
+    /**
+     * UC-09 "this and future": applies the same change to the recurrence's
+     * entries dated after `after` that were already created. Returns how many.
+     */
+    async updateFollowing(
+      tx: UserTx,
+      recurrenceId: string,
+      after: string,
+      data: Partial<Omit<TInsert, "id" | "userId" | "createdAt">>
+    ): Promise<number> {
+      const rows: { id: string }[] = await tx
+        .update(table)
+        .set({ ...data, updatedAt: new Date() })
+        .where(and(eq(table.recurrenceId, recurrenceId), gt(table.entryDate, after), notDeleted))
+        .returning({ id: table.id });
+      return rows.length;
     },
 
     async softDelete(tx: UserTx, id: string): Promise<boolean> {

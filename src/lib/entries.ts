@@ -144,6 +144,23 @@ export const updateEntrySchemas = {
   INVESTMENT: entryObjects.INVESTMENT.partial().refine(atLeastOne, "validation.required"),
 } satisfies Record<EntryKind, z.ZodType>;
 
+/**
+ * UC-09: editing an entry created by a recurrence — `?scope=future` also
+ * changes the recurrence and its later entries ("this and future").
+ */
+export const EDIT_SCOPES = ["this", "future"] as const;
+export type EditScope = (typeof EDIT_SCOPES)[number];
+export const editScopeSchema = z.enum(EDIT_SCOPES, "validation.invalidOption").default("this");
+
+/** The fields a recurrence copies onto every entry — what "this and future" carries over */
+export const RECURRING_FIELDS = [
+  "amount",
+  "categoryId",
+  "description",
+  "paymentMethod",
+  "institution",
+] as const;
+
 /** UC-11: copy an entry to another date */
 export const duplicateEntrySchema = z.strictObject({ entryDate: dateSchema });
 
