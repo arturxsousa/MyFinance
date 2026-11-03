@@ -65,7 +65,10 @@ export function EntriesList({
 
   const filtered = !!(query.q || query.category);
 
-  if (list.entries.length === 0) {
+  // Projections only on the first page: they aren't part of the paginated real entries
+  const projections = list.page === 1 ? list.projections : [];
+
+  if (list.entries.length === 0 && projections.length === 0) {
     return (
       <Card className="shadow-lg border-border/60">
         <CardContent>
@@ -103,7 +106,7 @@ export function EntriesList({
     );
   }
 
-  const category = (e: EntryDto) => {
+  const category = (e: { categoryId: string }) => {
     const c = byId.get(e.categoryId);
     return (
       <span className="flex min-w-0 items-center gap-2">
@@ -112,6 +115,12 @@ export function EntriesList({
       </span>
     );
   };
+
+  const projectedBadge = (
+    <Badge variant="outline" className="gap-1 border-dashed" title={t("entries.projectedHint")}>
+      {t("entries.projected")}
+    </Badge>
+  );
 
   const scheduled = (
     <Badge variant="outline" className="gap-1" title={t("entries.scheduledHint")}>
@@ -138,6 +147,42 @@ export function EntriesList({
             </TableRow>
           </TableHeader>
           <TableBody>
+            {projections.map((p) => (
+              <TableRow
+                key={`${p.recurrenceId}-${p.entryDate}`}
+                className="border-dashed text-muted-foreground hover:bg-transparent"
+                title={t("entries.projectedHint")}
+              >
+                <TableCell className="pl-4 tabular-nums">
+                  {formatDate(p.entryDate, locale)}
+                </TableCell>
+                <TableCell className="max-w-0">
+                  <div className="flex items-center gap-2">
+                    <span className="truncate">{p.description ?? t("entries.noDescription")}</span>
+                    <Repeat className="size-3.5 shrink-0" aria-label={t("entries.recurring")} />
+                    {projectedBadge}
+                  </div>
+                </TableCell>
+                <TableCell className="max-w-48">{category(p)}</TableCell>
+                {extraColumn && (
+                  <TableCell className="truncate">{extraValue(p as EntryDto)}</TableCell>
+                )}
+                <TableCell className="text-right tabular-nums">
+                  {formatAmount(p.amount, currency, locale)}
+                </TableCell>
+                <TableCell className="pr-2" />
+              </TableRow>
+            ))}
+            {list.entries.length === 0 && (
+              <TableRow className="hover:bg-transparent">
+                <TableCell
+                  colSpan={extraColumn ? 6 : 5}
+                  className="py-6 text-center text-sm text-muted-foreground"
+                >
+                  {t("entries.onlyProjections")}
+                </TableCell>
+              </TableRow>
+            )}
             {list.entries.map((e) => (
               <TableRow
                 key={e.id}
@@ -194,6 +239,31 @@ export function EntriesList({
 
         {/* Mobile: cards */}
         <ul className="divide-y md:hidden pb-16 sm:pb-0">
+          {projections.map((p) => (
+            <li
+              key={`${p.recurrenceId}-${p.entryDate}`}
+              className="flex items-start gap-3 border-dashed px-4 py-3 text-muted-foreground"
+            >
+              <div className="min-w-0 flex-1 space-y-1">
+                <p className="truncate text-sm">{p.description ?? t("entries.noDescription")}</p>
+                <div className="flex items-center gap-2 text-xs">
+                  {category(p)}
+                  <span aria-hidden>·</span>
+                  <span className="shrink-0 tabular-nums">{formatDate(p.entryDate, locale)}</span>
+                  <Repeat className="size-3 shrink-0" aria-label={t("entries.recurring")} />
+                </div>
+                {projectedBadge}
+              </div>
+              <span className="shrink-0 text-sm tabular-nums">
+                {formatAmount(p.amount, currency, locale)}
+              </span>
+            </li>
+          ))}
+          {list.entries.length === 0 && (
+            <li className="px-4 py-6 text-center text-sm text-muted-foreground">
+              {t("entries.onlyProjections")}
+            </li>
+          )}
           {list.entries.map((e) => (
             <li
               key={e.id}

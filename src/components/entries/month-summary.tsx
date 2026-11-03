@@ -92,6 +92,15 @@ export function MonthSummary({ kind, list, categories, currency }: EntriesViewPr
                 : undefined
             }
           />
+          {stats.projectedCount > 0 && (
+            <Stat
+              label={t("entries.projectedTotal")}
+              value={money(stats.projectedTotal)}
+              hint={t(stats.projectedCount === 1 ? "entries.countOne" : "entries.countOther", {
+                count: stats.projectedCount,
+              })}
+            />
+          )}
         </dl>
       </CardContent>
     </Card>

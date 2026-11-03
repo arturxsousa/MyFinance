@@ -237,6 +237,10 @@ const ptBR: Messages = {
     repeatUntil: "Até (opcional)",
     repeatNoEnd: "Sem data final",
     clearDate: "Limpar",
+    projected: "Previsto",
+    projectedHint: "Recorrente — será lançado automaticamente neste dia",
+    projectedTotal: "Previsto",
+    onlyProjections: "Nenhum lançamento real neste mês ainda — só o que está previsto.",
     recurring: "Recorrente",
     recurringCreated: "Lançamento recorrente adicionado — próximo em {date}",
     duplicateArchived:

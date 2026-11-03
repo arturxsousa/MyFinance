@@ -233,6 +233,10 @@ const enUS = {
     repeatUntil: "Until (optional)",
     repeatNoEnd: "No end date",
     clearDate: "Clear",
+    projected: "Projected",
+    projectedHint: "Recurring — will be added automatically on this day",
+    projectedTotal: "Projected",
+    onlyProjections: "No real entries yet this month — only what's projected.",
     recurring: "Recurring",
     recurringCreated: "Recurring entry added — next on {date}",
     duplicateArchived:

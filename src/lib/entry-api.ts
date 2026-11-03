@@ -3,6 +3,7 @@ import { withUserDb, type UserTx } from "@/db/with-user-db";
 import { entryRepos, type EntryRow } from "@/db/repositories/entries";
 import { userRepo } from "@/db/repositories/users";
 import { recurrenceRepo } from "@/db/repositories/recurrences";
+import { occurrenceIn } from "@/lib/recurrence-schedule";
 import { requireUser } from "@/lib/guards";
 import { parseId, requireOwned } from "@/lib/ownership";
 import { checkEntryCategory } from "@/lib/entry-category";
@@ -66,6 +67,81 @@ const categoryError = (error: string) =>
 const notFound = () => errorResponse("NOT_FOUND", "Resource not found", 404);
 
 /**
+ * A recurrence's not-yet-generated occurrence in the month, shown as
+ * "Projected" so future months can be planned (decided 2026-11-02, beyond
+ * BR-07). Computed on read — never stored, never in a real total. When its
+ * day arrives the daily job creates the real entry and the projection goes away.
+ */
+export interface ProjectionDto {
+  recurrenceId: string;
+  kind: EntryKind;
+  categoryId: string;
+  amount: string;
+  entryDate: string;
+  description: string | null;
+  paymentMethod?: string | null;
+  institution?: string | null;
+}
+
+async function projectRecurrences(
+  tx: UserTx,
+  kind: EntryKind,
+  month: string,
+  filter: { categoryId?: string; q?: string }
+): Promise<ProjectionDto[]> {
+  const needle = filter.q?.toLocaleLowerCase();
+  const candidates = (await recurrenceRepo.listActive(tx, kind))
+    .map((r) => ({ r, date: occurrenceIn(month, r) }))
+    .filter(
+      ({ r, date }) =>
+        date &&
+        // already generated (or due and about to be) → the real entry is the source of truth
+        (!r.lastGeneratedOn || date > r.lastGeneratedOn) &&
+        (!filter.categoryId || r.categoryId === filter.categoryId) &&
+        (!needle || (r.description ?? "").toLocaleLowerCase().includes(needle))
+    );
+  if (candidates.length === 0) return [];
+
+  // Belt and braces: skip any date that already has a real (or deleted) entry
+  const { from, to } = monthDateRange(month);
+  const existing = new Set(
+    (
+      await entryRepos[kind].generatedDates(
+        tx,
+        candidates.map((c) => c.r.id),
+        from,
+        to
+      )
+    ).map((e) => `${e.recurrenceId}|${e.entryDate}`)
+  );
+
+  return candidates
+    .filter(({ r, date }) => !existing.has(`${r.id}|${date}`))
+    .map(({ r, date }) => ({
+      recurrenceId: r.id,
+      kind,
+      categoryId: r.categoryId,
+      amount: r.amount,
+      entryDate: date!,
+      description: r.description,
+      ...(kind === "EXPENSE" && { paymentMethod: r.paymentMethod ?? "OTHER" }),
+      ...(kind === "INVESTMENT" && { institution: r.institution }),
+    }))
+    .sort((a, b) => a.entryDate.localeCompare(b.entryDate));
+}
+
+const HUNDRED = BigInt(100);
+
+/** Exact sum of decimal strings via integer cents — never floats (BR-02) */
+export function sumAmounts(amounts: string[]): string {
+  const cents = amounts.reduce((acc, a) => {
+    const [int, dec = ""] = a.split(".");
+    return acc + BigInt(int!) * HUNDRED + BigInt(dec.padEnd(2, "0").slice(0, 2));
+  }, BigInt(0));
+  return `${cents / HUNDRED}.${String(cents % HUNDRED).padStart(2, "0")}`;
+}
+
+/**
  * One month of entries plus the total and count for the same filters.
  * Shared by GET /{kind} and the list pages.
  */
@@ -91,6 +167,7 @@ export async function listEntries(userId: string, kind: EntryKind, query: ListEn
         ? { count: 0, total: "0.00" }
         : repo.summary(tx, { ...filter, from: tomorrow > range.from ? tomorrow : range.from }),
     ]);
+    const projections = await projectRecurrences(tx, kind, ym, { categoryId: category, q });
     return {
       month: ym,
       entries: rows.map((r) => toEntryDto(kind, r, timezone)) as EntryDto[],
@@ -107,7 +184,11 @@ export async function listEntries(userId: string, kind: EntryKind, query: ListEn
         largest: largest[0] ? (toEntryDto(kind, largest[0], timezone) as EntryDto) : null,
         scheduledTotal: scheduled.total,
         scheduledCount: scheduled.count,
+        // Never part of `total`: projections aren't real entries yet
+        projectedTotal: sumAmounts(projections.map((p) => p.amount)),
+        projectedCount: projections.length,
       },
+      projections,
     };
   });
 }

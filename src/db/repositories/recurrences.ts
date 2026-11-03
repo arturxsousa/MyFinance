@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { recurrence } from "../schema/entries";
 import type { UserTx } from "../with-user-db";
 
@@ -15,5 +15,13 @@ export const recurrenceRepo = {
   async findById(tx: UserTx, id: string): Promise<RecurrenceRow | undefined> {
     const rows = await tx.select().from(recurrence).where(eq(recurrence.id, id));
     return rows[0];
+  },
+
+  /** Active (not paused) recurrences of one kind — for projections */
+  listActive(tx: UserTx, kind: RecurrenceRow["kind"]): Promise<RecurrenceRow[]> {
+    return tx
+      .select()
+      .from(recurrence)
+      .where(and(eq(recurrence.kind, kind), eq(recurrence.isActive, true)));
   },
 };

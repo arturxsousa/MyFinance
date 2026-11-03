@@ -21,7 +21,10 @@ const emptyList: EntryList = {
     largest: null,
     scheduledTotal: "0.00",
     scheduledCount: 0,
+    projectedTotal: "0.00",
+    projectedCount: 0,
   },
+  projections: [],
 };
 
 function setup(kind: EntryKind, query: Record<string, unknown> = {}) {

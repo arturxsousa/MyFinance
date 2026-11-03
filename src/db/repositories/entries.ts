@@ -5,6 +5,7 @@ import {
   eq,
   gte,
   ilike,
+  inArray,
   isNotNull,
   isNull,
   lte,
@@ -128,6 +129,29 @@ function makeEntryRepo<TSelect extends { id: string; userId: string }, TInsert>(
         .where(and(eq(table.id, id), notDeleted))
         .returning({ id: table.id });
       return rows.length > 0;
+    },
+
+    /**
+     * Occurrences already materialised for these recurrences in [from, to],
+     * soft-deleted ones included (a deleted occurrence still holds its slot).
+     */
+    async generatedDates(
+      tx: UserTx,
+      recurrenceIds: string[],
+      from: string,
+      to: string
+    ): Promise<{ recurrenceId: string; entryDate: string }[]> {
+      if (recurrenceIds.length === 0) return [];
+      return tx
+        .select({ recurrenceId: table.recurrenceId, entryDate: table.entryDate })
+        .from(table)
+        .where(
+          and(
+            inArray(table.recurrenceId, recurrenceIds),
+            gte(table.entryDate, from),
+            lte(table.entryDate, to)
+          )
+        ) as any;
     },
 
     /** Undo a soft delete. Returns undefined if the row isn't deleted. */
