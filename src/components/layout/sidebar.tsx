@@ -9,6 +9,7 @@ import {
   TrendingDown,
   PiggyBank,
   CreditCard,
+  Repeat,
   Tag,
   Settings,
   ShieldCheck,
@@ -34,6 +35,7 @@ const navItems: NavEntry[] = [
   { href: "/expenses", label: "nav.expenses", icon: TrendingDown },
   { href: "/investments", label: "nav.investments", icon: PiggyBank },
   { href: "/cards", label: "nav.cards", icon: CreditCard },
+  { href: "/recurrences", label: "nav.recurrences", icon: Repeat },
   { href: "/categories", label: "nav.categories", icon: Tag },
 ];
 

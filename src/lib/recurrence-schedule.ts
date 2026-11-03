@@ -1,4 +1,4 @@
-import { shiftMonth } from "@/lib/date";
+import { addDays, shiftMonth } from "@/lib/date";
 
 // Pure date logic shared by the generator (creates real entries) and the
 // projections (shows "Projected" rows), so both always agree on the dates.
@@ -35,4 +35,24 @@ export function dueOccurrences(s: Schedule, after: string | null, until: string)
     month = shiftMonth(month, 1);
   }
   return dates;
+}
+
+/**
+ * The next date the recurrence will create an entry on: the first occurrence
+ * on or after `from` (today) that hasn't been generated yet. Null once it has ended.
+ */
+export function nextOccurrence(
+  s: Schedule,
+  lastGenerated: string | null,
+  from: string
+): string | null {
+  const earliest = [from, s.startDate, lastGenerated ? addDays(lastGenerated, 1) : ""].reduce(
+    (a, b) => (a > b ? a : b)
+  );
+  // The day is fixed, so it falls in this month or the next one
+  for (const month of [earliest.slice(0, 7), shiftMonth(earliest.slice(0, 7), 1)]) {
+    const date = occurrenceIn(month, s);
+    if (date && date >= earliest) return date;
+  }
+  return null; // past the end date
 }

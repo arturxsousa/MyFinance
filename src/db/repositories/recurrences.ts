@@ -1,4 +1,4 @@
-import { and, eq } from "drizzle-orm";
+import { and, asc, eq } from "drizzle-orm";
 import { recurrence } from "../schema/entries";
 import type { UserTx } from "../with-user-db";
 
@@ -23,5 +23,36 @@ export const recurrenceRepo = {
       .select()
       .from(recurrence)
       .where(and(eq(recurrence.kind, kind), eq(recurrence.isActive, true)));
+  },
+  /** Every recurrence of the caller — paused and ended included (UC-13 page) */
+  list(tx: UserTx): Promise<RecurrenceRow[]> {
+    return tx
+      .select()
+      .from(recurrence)
+      .orderBy(asc(recurrence.dayOfMonth), asc(recurrence.createdAt));
+  },
+
+  async update(
+    tx: UserTx,
+    id: string,
+    data: Partial<
+      Pick<NewRecurrence, "amount" | "description" | "endDate" | "isActive" | "lastGeneratedOn">
+    >
+  ): Promise<RecurrenceRow | undefined> {
+    const rows = await tx
+      .update(recurrence)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(recurrence.id, id))
+      .returning();
+    return rows[0];
+  },
+
+  /** Generated entries are kept; their recurrence_id becomes NULL (FK ON DELETE SET NULL) */
+  async delete(tx: UserTx, id: string): Promise<boolean> {
+    const rows = await tx
+      .delete(recurrence)
+      .where(eq(recurrence.id, id))
+      .returning({ id: recurrence.id });
+    return rows.length > 0;
   },
 };
