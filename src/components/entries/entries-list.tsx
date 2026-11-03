@@ -1,6 +1,14 @@
 "use client";
 
-import { CalendarClock, PiggyBank, Plus, SearchX, TrendingDown, TrendingUp } from "lucide-react";
+import {
+  CalendarClock,
+  PiggyBank,
+  Plus,
+  Repeat,
+  SearchX,
+  TrendingDown,
+  TrendingUp,
+} from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -151,6 +159,12 @@ export function EntriesList({
                     >
                       {e.description ?? t("entries.noDescription")}
                     </span>
+                    {e.recurrenceId && (
+                      <Repeat
+                        className="size-3.5 shrink-0 text-muted-foreground"
+                        aria-label={t("entries.recurring")}
+                      />
+                    )}
                     {e.isScheduled && scheduled}
                   </div>
                   {e.notes && <p className="truncate text-xs text-muted-foreground">{e.notes}</p>}
@@ -205,6 +219,9 @@ export function EntriesList({
                   {category(e)}
                   <span aria-hidden>·</span>
                   <span className="shrink-0 tabular-nums">{formatDate(e.entryDate, locale)}</span>
+                  {e.recurrenceId && (
+                    <Repeat className="size-3 shrink-0" aria-label={t("entries.recurring")} />
+                  )}
                 </div>
                 {e.isScheduled && scheduled}
               </div>

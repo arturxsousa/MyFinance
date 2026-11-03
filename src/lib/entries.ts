@@ -88,17 +88,51 @@ const extras = {
   INVESTMENT: { institution: optionalText(80) },
 } as const;
 
+/** BR-07: only days 1–28 recur (every month has them) */
+export const MAX_RECURRING_DAY = 28;
+
+/**
+ * UC-07 "Repeat monthly": the recurrence starts on the entry's date and repeats
+ * on that same day of the month; the end date is optional.
+ */
+const repeatSchema = z.strictObject({ endDate: dateSchema.nullish().transform((v) => v ?? null) });
+
+/** Day and end-date rules need the entry date, so they're checked on the whole body */
+function checkRepeat(
+  v: { entryDate: string; repeat?: { endDate: string | null } },
+  ctx: z.RefinementCtx
+) {
+  if (!v.repeat) return;
+  if (Number(v.entryDate.slice(8, 10)) > MAX_RECURRING_DAY) {
+    ctx.addIssue({ code: "custom", path: ["repeat"], message: "validation.repeatDay" });
+  }
+  if (v.repeat.endDate && v.repeat.endDate < v.entryDate) {
+    ctx.addIssue({ code: "custom", path: ["repeat", "endDate"], message: "validation.repeatEnd" });
+  }
+}
+
 // strictObject: userId, recurrenceId, card fields, deletedAt… can't be set by the client
-export const createEntrySchemas = {
+const entryObjects = {
   INCOME: z.strictObject({ ...base, ...extras.INCOME }),
   EXPENSE: z.strictObject({ ...base, ...extras.EXPENSE }),
   INVESTMENT: z.strictObject({ ...base, ...extras.INVESTMENT }),
+};
+
+export const createEntrySchemas = {
+  INCOME: entryObjects.INCOME.extend({ repeat: repeatSchema.optional() }).superRefine(checkRepeat),
+  EXPENSE: entryObjects.EXPENSE.extend({ repeat: repeatSchema.optional() }).superRefine(
+    checkRepeat
+  ),
+  INVESTMENT: entryObjects.INVESTMENT.extend({ repeat: repeatSchema.optional() }).superRefine(
+    checkRepeat
+  ),
 } satisfies Record<EntryKind, z.ZodType>;
 
 const atLeastOne = (v: object) => Object.keys(v).length > 0;
 
+// Updates never take "repeat": recurring edits have their own flow (step 5)
 export const updateEntrySchemas = {
-  INCOME: createEntrySchemas.INCOME.partial().refine(atLeastOne, "validation.required"),
+  INCOME: entryObjects.INCOME.partial().refine(atLeastOne, "validation.required"),
   // .partial() keeps the paymentMethod default — drop it so an update doesn't reset it
   EXPENSE: z
     .strictObject({
@@ -107,7 +141,7 @@ export const updateEntrySchemas = {
     })
     .partial()
     .refine(atLeastOne, "validation.required"),
-  INVESTMENT: createEntrySchemas.INVESTMENT.partial().refine(atLeastOne, "validation.required"),
+  INVESTMENT: entryObjects.INVESTMENT.partial().refine(atLeastOne, "validation.required"),
 } satisfies Record<EntryKind, z.ZodType>;
 
 /** UC-11: copy an entry to another date */

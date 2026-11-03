@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { withUserDb, type UserTx } from "@/db/with-user-db";
 import { entryRepos, type EntryRow } from "@/db/repositories/entries";
 import { userRepo } from "@/db/repositories/users";
+import { recurrenceRepo } from "@/db/repositories/recurrences";
 import { requireUser } from "@/lib/guards";
 import { parseId, requireOwned } from "@/lib/ownership";
 import { checkEntryCategory } from "@/lib/entry-category";
@@ -21,6 +22,7 @@ import {
   duplicateEntrySchema,
   type EntryKind,
   type ListEntriesQuery,
+  type PaymentMethod,
 } from "@/lib/entries";
 import { ApiError, errorResponse, handleRouteError } from "@/lib/api-error";
 
@@ -138,7 +140,29 @@ export function entryCollectionHandlers(kind: EntryKind) {
       const result = await withUserDb(userId, async (tx) => {
         const check = await checkEntryCategory(tx, body.data.categoryId, kind);
         if (!check.ok) return check;
-        const row = await repo.create(tx, { ...body.data, userId } as never);
+        const { repeat, ...entry } = body.data;
+
+        // UC-07 "Repeat monthly": the recurrence and its first entry are created
+        // together. last_generated_on = this date, so the generator starts next month.
+        let recurrenceId: string | null = null;
+        if (repeat) {
+          const rec = await recurrenceRepo.create(tx, {
+            userId,
+            kind,
+            categoryId: entry.categoryId,
+            description: entry.description,
+            amount: entry.amount,
+            paymentMethod: (entry as { paymentMethod?: PaymentMethod }).paymentMethod ?? null,
+            institution: (entry as { institution?: string | null }).institution ?? null,
+            dayOfMonth: Number(entry.entryDate.slice(8, 10)),
+            startDate: entry.entryDate,
+            endDate: repeat.endDate,
+            lastGeneratedOn: entry.entryDate,
+          });
+          recurrenceId = rec.id;
+        }
+
+        const row = await repo.create(tx, { ...entry, userId, recurrenceId } as never);
         return { ok: true as const, dto: toEntryDto(kind, row, await userTimezone(tx, userId)) };
       });
 

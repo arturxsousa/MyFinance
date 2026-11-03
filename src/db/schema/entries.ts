@@ -31,6 +31,9 @@ export const recurrence = pgTable(
       .references(() => category.id),
     description: varchar("description", { length: 120 }),
     amount: numeric("amount", { precision: 14, scale: 2 }).notNull(),
+    // Copied onto every generated entry: expense → payment method, investment → institution
+    paymentMethod: payMethodEnum("payment_method"),
+    institution: varchar("institution", { length: 80 }),
     dayOfMonth: smallint("day_of_month").notNull(),
     startDate: date("start_date").notNull(),
     endDate: date("end_date"),

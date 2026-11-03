@@ -3,3 +3,4 @@ export { incomeRepo, expenseRepo, investmentRepo } from "./entries";
 export { userRepo } from "./users";
 export { refreshTokenRepo } from "./refresh-tokens";
 export { authTokenRepo } from "./auth-tokens";
+export { recurrenceRepo } from "./recurrences";

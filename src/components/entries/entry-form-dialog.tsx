@@ -3,7 +3,8 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { CalendarClock, Copy, Trash2 } from "lucide-react";
+import { CalendarClock, Copy, Repeat, Trash2 } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -27,9 +28,15 @@ import {
 import { CategorySelect } from "@/components/categories/category-select";
 import { useLocale, useT } from "@/i18n/client";
 import type { CategoryDto } from "@/lib/categories";
-import { PAYMENT_METHODS, slugFromKind, type EntryKind, type PaymentMethod } from "@/lib/entries";
+import {
+  MAX_RECURRING_DAY,
+  PAYMENT_METHODS,
+  slugFromKind,
+  type EntryKind,
+  type PaymentMethod,
+} from "@/lib/entries";
 import type { EntryDto } from "@/lib/entry-api";
-import { formatMonthLabel } from "@/lib/date";
+import { addDays, formatDate, formatMonthLabel, shiftMonth } from "@/lib/date";
 
 export type EntryFormState = { mode: "create" } | { mode: "edit"; entry: EntryDto } | null;
 
@@ -74,6 +81,8 @@ type Values = {
   notes: string;
   paymentMethod: PaymentMethod;
   institution: string;
+  repeat: boolean;
+  repeatEnd: string;
 };
 type FieldErrors = Partial<Record<keyof Values, string>>;
 
@@ -102,6 +111,8 @@ function EntryForm({
     notes: editing?.notes ?? "",
     paymentMethod: (editing?.paymentMethod as PaymentMethod) ?? "PIX",
     institution: editing?.institution ?? "",
+    repeat: false,
+    repeatEnd: "",
   });
   const [errors, setErrors] = useState<FieldErrors>({});
   const [saving, setSaving] = useState(false);
@@ -112,6 +123,8 @@ function EntryForm({
   };
 
   const scheduled = values.entryDate > today;
+  const day = Number(values.entryDate.slice(8, 10));
+  const canRepeat = day >= 1 && day <= MAX_RECURRING_DAY; // BR-07
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -127,6 +140,9 @@ function EntryForm({
     };
     if (kind === "EXPENSE") body.paymentMethod = values.paymentMethod;
     if (kind === "INVESTMENT") body.institution = values.institution;
+    if (!editing && values.repeat && canRepeat) {
+      body.repeat = { endDate: values.repeatEnd || null };
+    }
 
     const base = `/api/${slugFromKind(kind)}`;
     try {
@@ -147,6 +163,12 @@ function EntryForm({
               action: { label: t("entries.view"), onClick: () => onViewMonth(savedMonth) },
             }
           );
+        } else if (body.repeat) {
+          toast.success(
+            t("entries.recurringCreated", {
+              date: formatDate(nextMonthlyDate(values.entryDate), locale),
+            })
+          );
         } else {
           toast.success(t(editing ? "entries.updated" : "entries.created"));
         }
@@ -158,7 +180,10 @@ function EntryForm({
       const fields = (data?.error?.fields ?? {}) as Record<string, string[]>;
       setErrors(
         Object.fromEntries(
-          Object.entries(fields).map(([k, msgs]) => [k, t.dynamic(msgs[0], "validation.invalid")])
+          Object.entries(fields).map(([k, msgs]) => [
+            k.split(".")[0], // "repeat.endDate" → shown under the repeat block
+            t.dynamic(msgs[0], "validation.invalid"),
+          ])
         )
       );
       if (!Object.keys(fields).length) toast.error(t("common.somethingWrong"));
@@ -206,6 +231,55 @@ function EntryForm({
             <CalendarClock className="size-3.5" />
             {t("entries.scheduledNotice")}
           </p>
+        )}
+
+        {/* UC-07 "Repeat monthly" — creating only; recurring edits come with their own flow */}
+        {!editing && (
+          <div className="space-y-3 rounded-lg border bg-muted/30 p-3">
+            <label className="flex cursor-pointer items-start gap-3">
+              <Switch
+                checked={values.repeat && canRepeat}
+                onCheckedChange={(v) => set("repeat", v)}
+                disabled={!canRepeat}
+                className="mt-0.5"
+              />
+              <span className="space-y-0.5">
+                <span className="flex items-center gap-1.5 text-sm font-medium">
+                  <Repeat className="size-3.5" />
+                  {t("entries.repeatMonthly", { day })}
+                </span>
+                <span className="block text-xs text-muted-foreground">
+                  {canRepeat ? t("entries.repeatHint") : t("entries.repeatUnavailable")}
+                </span>
+              </span>
+            </label>
+            {values.repeat && canRepeat && (
+              <div className="space-y-1.5 pl-12">
+                <Label htmlFor="entry-repeat-end">{t("entries.repeatUntil")}</Label>
+                <div className="flex items-center gap-2">
+                  <DatePicker
+                    id="entry-repeat-end"
+                    value={values.repeatEnd}
+                    onChange={(v) => set("repeatEnd", v)}
+                    locale={locale}
+                    placeholder={t("entries.repeatNoEnd")}
+                    invalid={!!errors.repeat}
+                  />
+                  {values.repeatEnd && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => set("repeatEnd", "")}
+                    >
+                      {t("entries.clearDate")}
+                    </Button>
+                  )}
+                </div>
+              </div>
+            )}
+            {errors.repeat && <p className="text-sm text-destructive">{errors.repeat}</p>}
+          </div>
         )}
 
         <Field id="entry-category" label={t("entries.fieldCategory")} error={errors.categoryId}>
@@ -346,4 +420,10 @@ function Field({
       {error && <p className="text-sm text-destructive">{error}</p>}
     </div>
   );
+}
+
+/** Same day next month — the first date the generator will create */
+function nextMonthlyDate(date: string): string {
+  const next = shiftMonth(date.slice(0, 7), 1);
+  return addDays(`${next}-01`, Number(date.slice(8, 10)) - 1);
 }

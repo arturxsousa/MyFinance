@@ -231,6 +231,14 @@ const ptBR: Messages = {
     duplicateDate: "Nova data",
     duplicating: "Duplicando…",
     duplicated: "Cópia adicionada em {date}",
+    repeatMonthly: "Repetir todo mês, no dia {day}",
+    repeatHint: "Uma cópia é adicionada automaticamente todo mês neste dia.",
+    repeatUnavailable: "A repetição mensal só está disponível para os dias 1 a 28.",
+    repeatUntil: "Até (opcional)",
+    repeatNoEnd: "Sem data final",
+    clearDate: "Limpar",
+    recurring: "Recorrente",
+    recurringCreated: "Lançamento recorrente adicionado — próximo em {date}",
     duplicateArchived:
       "A categoria deste lançamento está arquivada e não pode receber novos lançamentos. Reative-a em Categorias ou crie o lançamento com outra categoria.",
   },
@@ -336,6 +344,8 @@ const ptBR: Messages = {
     categoryNotFound: "Categoria não encontrada",
     categoryKind: "Esta categoria pertence a outro tipo de lançamento",
     categoryArchived: "Esta categoria está arquivada — escolha outra",
+    repeatDay: "A repetição mensal só está disponível para os dias 1 a 28",
+    repeatEnd: "A data final deve ser igual ou posterior à data do lançamento",
   },
   notFound: {
     title: "Página não encontrada",

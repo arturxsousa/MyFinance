@@ -227,6 +227,14 @@ const enUS = {
     duplicateDate: "New date",
     duplicating: "Duplicating…",
     duplicated: "Copy added on {date}",
+    repeatMonthly: "Repeat every month, on day {day}",
+    repeatHint: "A copy is added automatically each month on this day.",
+    repeatUnavailable: "Monthly repeats are only available for days 1 to 28.",
+    repeatUntil: "Until (optional)",
+    repeatNoEnd: "No end date",
+    clearDate: "Clear",
+    recurring: "Recurring",
+    recurringCreated: "Recurring entry added — next on {date}",
     duplicateArchived:
       "This entry's category is archived and can't receive new entries. Reactivate it in Categories, or add the entry with another category.",
   },
@@ -332,6 +340,8 @@ const enUS = {
     categoryNotFound: "Category not found",
     categoryKind: "This category belongs to another type of entry",
     categoryArchived: "This category is archived — choose another one",
+    repeatDay: "Monthly repeats are only available for days 1 to 28",
+    repeatEnd: "The end date must be on or after the entry date",
   },
   notFound: {
     title: "Page not found",

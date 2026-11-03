@@ -220,6 +220,33 @@ describe("EntryFormDialog", () => {
     expect(screen.queryByRole("button", { name: "Delete" })).not.toBeInTheDocument();
   });
 
+  it("offers Repeat monthly when creating and sends it", async () => {
+    fetchMock.mockResolvedValue(ok({}));
+    setup({ mode: "create" });
+    expect(screen.getByText("Repeat every month, on day 29")).toBeInTheDocument();
+    // today is the 29th → not repeatable (BR-07)
+    expect(screen.getByRole("switch")).toHaveAttribute("aria-disabled", "true");
+    expect(
+      screen.getByText("Monthly repeats are only available for days 1 to 28.")
+    ).toBeInTheDocument();
+  });
+
+  it("does not offer Repeat monthly when editing", () => {
+    setup({
+      mode: "edit",
+      entry: {
+        id: "e1",
+        amount: "10.00",
+        entryDate: "2026-10-05",
+        categoryId: food.id,
+        description: null,
+        notes: null,
+        paymentMethod: "PIX",
+      } as EntryDto,
+    });
+    expect(screen.queryByText(/Repeat every month/)).not.toBeInTheDocument();
+  });
+
   it("only shows kind-specific fields for their kind", () => {
     setup({ mode: "create" }, "INCOME");
     expect(screen.queryByText("Payment method")).not.toBeInTheDocument();
