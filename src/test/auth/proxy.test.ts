@@ -46,7 +46,7 @@ describe("proxy (route protection)", () => {
     expect(new URL(res.headers.get("location")!).pathname).toBe("/login");
   });
 
-  it.each(["/login", "/register", "/api/auth/login", "/api/health"])(
+  it.each(["/login", "/register", "/api/auth/login", "/api/health", "/api/cron/recurrences"])(
     "lets anonymous users reach public path %s",
     async (path) => {
       const res = await proxy(request(path));

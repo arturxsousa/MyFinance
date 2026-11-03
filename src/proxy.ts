@@ -23,6 +23,8 @@ const PUBLIC_PATHS = [
   "/api/auth/verify-email",
   "/api/auth/resend-verification",
   "/api/health",
+  // Authenticated by CRON_SECRET in the handler, not by a session
+  "/api/cron",
 ];
 
 const AUTH_ONLY_PATHS = ["/login", "/register", "/forgot-password", "/reset-password"];
