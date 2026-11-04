@@ -8,11 +8,14 @@ const sql = neon(process.env.DATABASE_URL_UNPOOLED);
 
 const script = readFileSync("drizzle/manual/rls.sql", "utf8");
 
-// Split on Neon's statement separator and filter empties
+// Drop comment lines first: a statement preceded by a comment must still run.
 const statements = script
+  .split("\n")
+  .filter((line) => !line.trim().startsWith("--"))
+  .join("\n")
   .split(/;\s*\n/)
   .map((s) => s.trim())
-  .filter((s) => s && !s.startsWith("--"));
+  .filter(Boolean);
 
 for (const statement of statements) {
   try {

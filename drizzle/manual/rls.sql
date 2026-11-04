@@ -4,7 +4,8 @@
 -- =============================================================
 
 -- 1. App role — no BYPASSRLS, no login (Neon uses connection strings per role)
-CREATE ROLE IF NOT EXISTS app_user_rw;
+-- (Postgres has no CREATE ROLE IF NOT EXISTS; kept on one line so the runner's split keeps it whole)
+DO $$ BEGIN IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'app_user_rw') THEN CREATE ROLE app_user_rw NOLOGIN; END IF; END $$;
 
 -- Allow neondb_owner to SET LOCAL ROLE app_user_rw in transactions (needed for RLS tests)
 GRANT app_user_rw TO neondb_owner;
