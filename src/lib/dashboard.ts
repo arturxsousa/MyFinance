@@ -3,8 +3,10 @@ import { withUserDb } from "@/db/with-user-db";
 import { entryRepos } from "@/db/repositories/entries";
 import { userRepo } from "@/db/repositories/users";
 import { dashboardRepo } from "@/db/repositories/dashboard";
-import { ENTRY_KINDS, monthSchema, type EntryKind } from "@/lib/entries";
-import { projectRecurrences, toEntryDto, type EntryDto } from "@/lib/entry-api";
+import { recurrenceRepo } from "@/db/repositories/recurrences";
+import { monthSchema, type EntryKind } from "@/lib/entries";
+import { toEntryDto, type EntryDto } from "@/lib/entry-api";
+import { occurrenceIn } from "@/lib/recurrence-schedule";
 import { addDays, currentYearMonth, monthDateRange, shiftMonth, todayInTimeZone } from "@/lib/date";
 import { fromCents, sumAmounts, toCents } from "@/lib/money";
 
@@ -79,28 +81,23 @@ export async function getDashboard(userId: string, requestedMonth?: string) {
     const firstMonth = shiftMonth(month, -(TREND_MONTHS - 1));
     const trendRange = { from: monthDateRange(firstMonth).from, to: range.to };
 
-    const [
-      hasData,
-      incomeByMonth,
-      expenseByMonth,
-      investmentByMonth,
-      investedBefore,
-      byCategory,
-      top,
-    ] = await Promise.all([
-      dashboardRepo.hasAnyEntry(tx),
-      dashboardRepo.monthlyTotals(tx, "INCOME", trendRange.from, trendRange.to),
-      dashboardRepo.monthlyTotals(tx, "EXPENSE", trendRange.from, trendRange.to),
-      dashboardRepo.monthlyTotals(tx, "INVESTMENT", trendRange.from, trendRange.to),
-      dashboardRepo.totalBefore(tx, "INVESTMENT", trendRange.from),
-      dashboardRepo.expensesByCategory(tx, range.from, range.to),
-      entryRepos.EXPENSE.list(tx, range, { sort: "amount_desc", limit: TOP_EXPENSES, offset: 0 }),
-    ]);
+    // One trip each; RLS scopes them to the caller
+    const { byMonth, investedBefore, hasData } = await dashboardRepo.totals(
+      tx,
+      trendRange.from,
+      trendRange.to
+    );
+    const byCategory = await dashboardRepo.expensesByCategory(tx, range.from, range.to);
+    const top = await entryRepos.EXPENSE.list(tx, range, {
+      sort: "amount_desc",
+      limit: TOP_EXPENSES,
+      offset: 0,
+    });
 
     const totalsFor = (m: string): Record<EntryKind, string> => ({
-      INCOME: incomeByMonth.get(m) ?? ZERO,
-      EXPENSE: expenseByMonth.get(m) ?? ZERO,
-      INVESTMENT: investmentByMonth.get(m) ?? ZERO,
+      INCOME: byMonth.INCOME.get(m) ?? ZERO,
+      EXPENSE: byMonth.EXPENSE.get(m) ?? ZERO,
+      INVESTMENT: byMonth.INVESTMENT.get(m) ?? ZERO,
     });
 
     // ── Widget 1: summary with change vs the previous month ──
@@ -165,40 +162,52 @@ export async function getDashboard(userId: string, requestedMonth?: string) {
     const windowMonths = [window.from.slice(0, 7), window.to.slice(0, 7)].filter(
       (m, i, all) => all.indexOf(m) === i
     );
-    const upcoming: UpcomingItem[] = [];
-    for (const kind of ENTRY_KINDS) {
-      const scheduled = await entryRepos[kind].list(tx, window, {
-        sort: "date_asc",
-        limit: 100,
-        offset: 0,
+    const scheduled = await dashboardRepo.scheduledBetween(tx, window.from, window.to, 100);
+    const upcoming: UpcomingItem[] = scheduled.map((e) => ({
+      kind: e.kind,
+      source: "scheduled" as const,
+      id: e.id,
+      categoryId: e.category_id,
+      description: e.description,
+      amount: e.amount,
+      entryDate: e.entry_date,
+      recurring: !!e.recurrence_id,
+    }));
+
+    // Recurrences' occurrences in the window not created yet (same rule as the
+    // list pages' "Projected"): after last_generated_on and with no entry yet
+    const candidates = (await recurrenceRepo.list(tx))
+      .filter((r) => r.isActive)
+      .flatMap((r) =>
+        windowMonths
+          .map((m) => occurrenceIn(m, r))
+          .filter(
+            (d): d is string =>
+              !!d &&
+              d >= window.from &&
+              d <= window.to &&
+              (!r.lastGeneratedOn || d > r.lastGeneratedOn)
+          )
+          .map((date) => ({ r, date }))
+      );
+    const existing = await dashboardRepo.generatedDates(
+      tx,
+      [...new Set(candidates.map((c) => c.r.id))],
+      window.from,
+      window.to
+    );
+    for (const { r, date } of candidates) {
+      if (existing.has(`${r.id}|${date}`)) continue;
+      upcoming.push({
+        kind: r.kind,
+        source: "projected",
+        id: `${r.id}|${date}`,
+        categoryId: r.categoryId,
+        description: r.description,
+        amount: r.amount,
+        entryDate: date,
+        recurring: true,
       });
-      for (const e of scheduled) {
-        upcoming.push({
-          kind,
-          source: "scheduled",
-          id: e.id,
-          categoryId: e.categoryId,
-          description: e.description,
-          amount: e.amount,
-          entryDate: e.entryDate,
-          recurring: !!e.recurrenceId,
-        });
-      }
-      for (const m of windowMonths) {
-        for (const p of await projectRecurrences(tx, kind, m, {})) {
-          if (p.entryDate < window.from || p.entryDate > window.to) continue;
-          upcoming.push({
-            kind,
-            source: "projected",
-            id: `${p.recurrenceId}|${p.entryDate}`,
-            categoryId: p.categoryId,
-            description: p.description,
-            amount: p.amount,
-            entryDate: p.entryDate,
-            recurring: true,
-          });
-        }
-      }
     }
     upcoming.sort((a, b) => a.entryDate.localeCompare(b.entryDate) || a.kind.localeCompare(b.kind));
 

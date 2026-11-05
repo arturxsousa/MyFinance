@@ -13,9 +13,11 @@ export type UserTx = Parameters<Parameters<typeof db.transaction>[0]>[0];
  */
 export async function withUserDb<T>(userId: string, fn: (tx: UserTx) => Promise<T>): Promise<T> {
   return db.transaction(async (tx) => {
-    // Both are transaction-scoped (SET LOCAL / is_local=true) and reset on commit
-    await tx.execute(sql`SET LOCAL ROLE app_user_rw`);
-    await tx.execute(sql`SELECT set_config('app.user_id', ${userId}, true)`);
+    // Both are transaction-scoped (is_local = true) and reset on commit.
+    // set_config('role', …, true) is SET LOCAL ROLE; one statement saves a round trip.
+    await tx.execute(
+      sql`SELECT set_config('role', 'app_user_rw', true), set_config('app.user_id', ${userId}, true)`
+    );
     return fn(tx);
   });
 }

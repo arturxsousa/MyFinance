@@ -86,7 +86,7 @@ export interface ProjectionDto {
   institution?: string | null;
 }
 
-export async function projectRecurrences(
+async function projectRecurrences(
   tx: UserTx,
   kind: EntryKind,
   month: string,
