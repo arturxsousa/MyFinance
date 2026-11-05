@@ -13,10 +13,13 @@ import type { Dashboard } from "@/lib/dashboard";
 /** Widget 5: the month's 5 largest expenses */
 export function TopExpenses({
   data,
+  colors,
   categories,
   currency,
 }: {
   data: Dashboard;
+  /** categoryId → its colour in the category chart; others are gray */
+  colors: Map<string, string>;
   categories: CategoryDto[];
   currency: string;
 }) {
@@ -62,7 +65,10 @@ export function TopExpenses({
                       )}
                     </p>
                     <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                      {category && <ColorDot color={category.color} className="size-2" />}
+                      <ColorDot
+                        color={colors.get(e.categoryId) ?? "var(--viz-other)"}
+                        className="size-2"
+                      />
                       {e.description && <span className="truncate">{categoryName}</span>}
                       {e.description && <span aria-hidden>·</span>}
                       <span className="shrink-0 tabular-nums">

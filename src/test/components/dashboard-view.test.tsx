@@ -146,7 +146,8 @@ describe("DashboardView", () => {
 
   it("empty lists say so", () => {
     setup({ topExpenses: [], upcoming: [] });
-    expect(screen.getByText("Nenhuma despesa neste mês")).toBeInTheDocument();
+    // the category chart and the top-expenses list both say it
+    expect(screen.getAllByText("Nenhuma despesa neste mês")).toHaveLength(2);
     expect(screen.getByText("Nada previsto para os próximos 30 dias")).toBeInTheDocument();
   });
 

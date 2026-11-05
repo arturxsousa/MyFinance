@@ -15,6 +15,10 @@ import { cn } from "@/lib/utils";
 import { SummaryCards } from "./summary-cards";
 import { TopExpenses } from "./top-expenses";
 import { UpcomingList } from "./upcoming-list";
+import { CategoryDonut } from "./category-donut";
+import { TrendChart } from "./trend-chart";
+import { InvestmentsChart } from "./investments-chart";
+import { VIZ_TOKENS, CATEGORY_SLOTS } from "./chart-card";
 
 export interface DashboardViewProps {
   data: Dashboard;
@@ -45,6 +49,12 @@ export function DashboardView({ data, categories, currency, currentMonth }: Dash
       })
     );
 
+  // The category chart's colours, reused by the top-expenses dots so a category
+  // reads the same everywhere on the page
+  const sliceColors = new Map(
+    data.categories.slices.map((s, i) => [s.categoryId, CATEGORY_SLOTS[i]!])
+  );
+
   const quickAdd = (
     <div className="flex flex-wrap items-center gap-2">
       <span className="sr-only">{t("dashboard.quickAdd")}</span>
@@ -63,7 +73,7 @@ export function DashboardView({ data, categories, currency, currentMonth }: Dash
 
   return (
     <div
-      className={cn("space-y-6 transition-opacity", pending && "opacity-60")}
+      className={cn("space-y-6 transition-opacity", VIZ_TOKENS, pending && "opacity-60")}
       aria-busy={pending}
     >
       {/* Month picker drives every widget; quick add on the right */}
@@ -101,7 +111,17 @@ export function DashboardView({ data, categories, currency, currentMonth }: Dash
         <>
           <SummaryCards data={data} currency={currency} />
           <div className="grid gap-6 lg:grid-cols-2">
-            <TopExpenses data={data} categories={categories} currency={currency} />
+            <CategoryDonut data={data} categories={categories} currency={currency} />
+            <TopExpenses
+              data={data}
+              colors={sliceColors}
+              categories={categories}
+              currency={currency}
+            />
+          </div>
+          <TrendChart data={data} currency={currency} />
+          <div className="grid gap-6 lg:grid-cols-2">
+            <InvestmentsChart data={data} currency={currency} />
             <UpcomingList data={data} categories={categories} currency={currency} />
           </div>
         </>
