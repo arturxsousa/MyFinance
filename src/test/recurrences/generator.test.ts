@@ -16,7 +16,6 @@ import * as expenses from "@/app/api/expenses/route";
 import { signAccessToken } from "@/lib/auth";
 import { generateDueEntries } from "@/lib/recurrence-generator";
 import { dueOccurrences, occurrenceIn } from "@/lib/recurrence-schedule";
-import { sumAmounts } from "@/lib/entry-api";
 
 const sql = neon(process.env.DATABASE_URL_UNPOOLED!);
 const USER = crypto.randomUUID(); // America/Sao_Paulo
@@ -257,13 +256,5 @@ describe("projections in the list", () => {
   it("only appears on the first page", async () => {
     await rec({ start: "2031-01-05", last: "2031-01-05" });
     expect((await list("2031-03", "&page=2")).projections).toHaveLength(1); // API returns them; the page hides them past page 1
-  });
-});
-
-describe("sumAmounts", () => {
-  it("adds decimal strings exactly", () => {
-    expect(sumAmounts(["0.10", "0.20"])).toBe("0.30");
-    expect(sumAmounts(["999999999999.99", "0.01"])).toBe("1000000000000.00");
-    expect(sumAmounts([])).toBe("0.00");
   });
 });

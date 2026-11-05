@@ -3,6 +3,7 @@ import { withUserDb, type UserTx } from "@/db/with-user-db";
 import { entryRepos, type EntryRow } from "@/db/repositories/entries";
 import { userRepo } from "@/db/repositories/users";
 import { recurrenceRepo } from "@/db/repositories/recurrences";
+import { sumAmounts } from "@/lib/money";
 import { occurrenceIn } from "@/lib/recurrence-schedule";
 import { requireUser } from "@/lib/guards";
 import { parseId, requireOwned } from "@/lib/ownership";
@@ -85,7 +86,7 @@ export interface ProjectionDto {
   institution?: string | null;
 }
 
-async function projectRecurrences(
+export async function projectRecurrences(
   tx: UserTx,
   kind: EntryKind,
   month: string,
@@ -130,17 +131,6 @@ async function projectRecurrences(
       ...(kind === "INVESTMENT" && { institution: r.institution }),
     }))
     .sort((a, b) => a.entryDate.localeCompare(b.entryDate));
-}
-
-const HUNDRED = BigInt(100);
-
-/** Exact sum of decimal strings via integer cents — never floats (BR-02) */
-export function sumAmounts(amounts: string[]): string {
-  const cents = amounts.reduce((acc, a) => {
-    const [int, dec = ""] = a.split(".");
-    return acc + BigInt(int!) * HUNDRED + BigInt(dec.padEnd(2, "0").slice(0, 2));
-  }, BigInt(0));
-  return `${cents / HUNDRED}.${String(cents % HUNDRED).padStart(2, "0")}`;
 }
 
 /**

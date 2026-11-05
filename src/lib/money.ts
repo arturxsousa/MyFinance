@@ -1,34 +1,35 @@
-const DEFAULT_CURRENCY = "BRL";
-const DEFAULT_LOCALE = "pt-BR";
+// Money is an exact decimal string ("1234.50") everywhere — never a float (BR-02).
+// Arithmetic goes through integer cents as BigInt, so sums and splits are exact.
 
-export function formatMoney(
-  amount: number,
-  currency: string = DEFAULT_CURRENCY,
-  locale: string = DEFAULT_LOCALE
-): string {
-  return new Intl.NumberFormat(locale, {
-    style: "currency",
-    currency,
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format(amount);
+const HUNDRED = BigInt(100);
+
+/** "1234.5" → 123450n. Expects a non-negative decimal with at most 2 places. */
+export function toCents(amount: string): bigint {
+  const [int, dec = ""] = amount.split(".");
+  return BigInt(int!) * HUNDRED + BigInt(dec.padEnd(2, "0").slice(0, 2));
 }
 
-// Parses a localised string like "1.234,56" or "1,234.56" into a number.
-export function parseMoneyInput(raw: string): number {
-  const digits = raw.replace(/\D/g, "");
-  if (!digits) return 0;
-  return parseInt(digits, 10) / 100;
+/** 123450n → "1234.50" */
+export function fromCents(cents: bigint): string {
+  return `${cents / HUNDRED}.${String(cents % HUNDRED).padStart(2, "0")}`;
 }
 
-// Rounds to 2 decimal places using banker's truncation (matches BR-13 / numeric(14,2)).
-export function toDecimal(value: number): number {
-  return Math.trunc(value * 100) / 100;
+/** Exact sum of decimal strings */
+export function sumAmounts(amounts: string[]): string {
+  return fromCents(amounts.reduce((acc, a) => acc + toCents(a), BigInt(0)));
 }
 
-// Splits a total into N installments: truncates each, remainder goes on the first (BR-13).
-export function splitInstallments(total: number, n: number): number[] {
-  const unit = Math.trunc((total * 100) / n);
-  const remainder = Math.round(total * 100) - unit * n;
-  return Array.from({ length: n }, (_, i) => (i === 0 ? (unit + remainder) / 100 : unit / 100));
+/**
+ * BR-13: splits a total into n installments. Each is the total divided by n,
+ * truncated to the cent; the leftover cents go on installment 1, so the parts
+ * always add back up to the total exactly.
+ *   splitInstallments("100.00", 3) → ["33.34", "33.33", "33.33"]
+ */
+export function splitInstallments(total: string, n: number): string[] {
+  if (!Number.isInteger(n) || n < 1) throw new RangeError(`Invalid installment count: ${n}`);
+  const cents = toCents(total);
+  const count = BigInt(n);
+  const unit = cents / count; // BigInt division truncates
+  const first = unit + (cents - unit * count);
+  return Array.from({ length: n }, (_, i) => fromCents(i === 0 ? first : unit));
 }
